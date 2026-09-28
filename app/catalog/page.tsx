@@ -15,7 +15,6 @@ type Product = {
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/products')
@@ -23,48 +22,44 @@ export default function CatalogPage() {
       .then((data) => {
         setProducts(data);
         setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
       });
   }, []);
 
-  if (loading) return <div className="p-8">Загрузка...</div>;
-  if (error) return <div className="p-8 text-red-600">Ошибка: {error}</div>;
+  if (loading) return <div className="p-16 text-center text-xs uppercase tracking-widest">Загрузка...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Каталог продукции</h1>
+    <div className="max-w-7xl mx-auto px-6 py-16">
+      <h1 className="text-xs uppercase tracking-[0.3em] mb-4">
+        Каталог продукции
+      </h1>
+      <p className="text-5xl font-black uppercase mb-16">Все товары</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {products.map((product) => (
-          <div
-            key={product.id}
-            className="border rounded-lg p-4 hover:shadow-lg transition"
-          >
-            <div className="bg-gray-100 h-48 rounded mb-4 flex items-center justify-center text-gray-400">
+          <div key={product.id} className="group cursor-pointer">
+            {/* Фото — квадратное */}
+            <div className="aspect-square bg-gray-100 mb-4 flex items-center justify-center overflow-hidden">
               {product.image_url ? (
                 <img
                   src={product.image_url}
                   alt={product.name}
-                  className="h-full w-full object-cover rounded"
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
               ) : (
-                'Нет фото'
+                <span className="text-xs uppercase tracking-widest text-gray-400">
+                  Нет фото
+                </span>
               )}
             </div>
-            <h2 className="text-lg font-semibold mb-1">{product.name}</h2>
-            <p className="text-sm text-gray-500 mb-2">{product.category}</p>
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-              {product.description}
+
+            {/* Название */}
+            <h3 className="text-sm font-bold uppercase mb-1">
+              {product.name}
+            </h3>
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">
+              {product.category}
             </p>
-            <div className="flex justify-between items-center">
-              <span className="text-xl font-bold">{product.price} BYN</span>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                В корзину
-              </button>
-            </div>
+            <p className="text-sm font-bold">{product.price} BYN</p>
           </div>
         ))}
       </div>
