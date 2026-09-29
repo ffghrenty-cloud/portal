@@ -1,19 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Bell,
-  FileText,
-  Heart,
-  Menu,
-  Package,
-  Search,
-  ShoppingCart,
-  Truck,
-  UserRound,
-  X,
-} from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, FileText, Heart, Package, Truck } from "lucide-react";
 
 type Product = {
   id: number;
@@ -99,8 +88,6 @@ const categories = [
 export default function Home() {
   const [category, setCategory] = useState("Все");
   const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<number[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   const filteredProducts = useMemo(() => {
@@ -111,8 +98,7 @@ export default function Home() {
     });
   }, [category, search]);
 
-  function addToCart(id: number) {
-    setCart((items) => [...items, id]);
+  function addToCart() {
     setNotice("Товар добавлен в заявку");
     setTimeout(() => setNotice(""), 1800);
   }
@@ -124,50 +110,6 @@ export default function Home() {
 
   return (
     <main>
-      {/* ШАПКА */}
-      <header className="header">
-        <a className="brand" href="#">
-          <span className="brand-main">ОРШАЛЁН</span>
-          <span className="brand-sub">РУПТП «ОРШАНСКИЙ ЛЬНОКОМБИНАТ»</span>
-        </a>
-
-        <nav className={menuOpen ? "nav nav-open" : "nav"}>
-          <a className="active" href="#catalog">Каталог</a>
-          <a href="#orders">Мои заказы</a>
-          <a href="#prices">Цены</a>
-          <a href="#documents">Документы</a>
-          <a href="#company">О предприятии</a>
-        </nav>
-
-        <div className="header-actions">
-          <div className="search-mini">
-            <Search size={18} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск продукции"
-            />
-          </div>
-          <button className="icon-btn" aria-label="Уведомления">
-            <Bell size={20} />
-          </button>
-          <button className="icon-btn cart-btn" aria-label="Заявка">
-            <ShoppingCart size={20} />
-            {cart.length > 0 && <span className="cart-count">{cart.length}</span>}
-          </button>
-          <button className="login-btn">
-            <UserRound size={18} /> Войти
-          </button>
-          <button
-            className="mobile-menu"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Меню"
-          >
-            {menuOpen ? <X /> : <Menu />}
-          </button>
-        </div>
-      </header>
-
       {/* HERO */}
       <section className="hero">
         <div className="hero-content">
@@ -182,12 +124,12 @@ export default function Home() {
             в одном портале.
           </p>
           <div className="hero-buttons">
-            <a href="#catalog" className="button primary">
+            <Link href="/catalog" className="button primary">
               Перейти в каталог <ArrowRight size={18} />
-            </a>
-            <a href="#orders" className="button light">
+            </Link>
+            <Link href="/register" className="button light">
               Создать заявку
-            </a>
+            </Link>
           </div>
         </div>
         <div className="hero-note">
@@ -198,10 +140,22 @@ export default function Home() {
 
       {/* СТАТИСТИКА */}
       <section className="stats">
-        <div><b>90+</b><span>лет производства</span></div>
-        <div><b>30+</b><span>видов продукции</span></div>
-        <div><b>1 000+</b><span>оптовых заказчиков</span></div>
-        <div><b>24/7</b><span>отслеживание заказов</span></div>
+        <div>
+          <b>90+</b>
+          <span>лет производства</span>
+        </div>
+        <div>
+          <b>30+</b>
+          <span>видов продукции</span>
+        </div>
+        <div>
+          <b>1 000+</b>
+          <span>оптовых заказчиков</span>
+        </div>
+        <div>
+          <b>24/7</b>
+          <span>отслеживание заказов</span>
+        </div>
       </section>
 
       {/* КАТЕГОРИИ */}
@@ -211,9 +165,9 @@ export default function Home() {
             <span className="eyebrow">КАТЕГОРИИ</span>
             <h2>Продукция для оптовых заказчиков</h2>
           </div>
-          <a href="#products" className="text-link">
+          <Link href="/catalog" className="text-link">
             Весь каталог <ArrowRight size={16} />
-          </a>
+          </Link>
         </div>
 
         <div className="categories">
@@ -269,16 +223,42 @@ export default function Home() {
             <span className="eyebrow">КАТАЛОГ</span>
             <h2>Популярная продукция</h2>
           </div>
-          <div className="filter-row">
-            {["Все", "Ткани", "Пряжа", "Домашний текстиль"].map((item) => (
-              <button
-                key={item}
-                className={category === item ? "filter active-filter" : "filter"}
-                onClick={() => setCategory(item)}
-              >
-                {item}
-              </button>
-            ))}
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Поиск продукции..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                padding: "10px 16px",
+                border: "1px solid #d9d2ca",
+                fontSize: "14px",
+                fontFamily: "inherit",
+                background: "#fbf9f6",
+                minWidth: "220px",
+                outline: "none",
+              }}
+            />
+            <div className="filter-row">
+              {["Все", "Ткани", "Пряжа", "Домашний текстиль"].map((item) => (
+                <button
+                  key={item}
+                  className={
+                    category === item ? "filter active-filter" : "filter"
+                  }
+                  onClick={() => setCategory(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -287,7 +267,9 @@ export default function Home() {
             <article className="product-card" key={product.id}>
               <div className="product-image">
                 <img src={product.image} alt={product.name} />
-                {product.badge && <span className="badge">{product.badge}</span>}
+                {product.badge && (
+                  <span className="badge">{product.badge}</span>
+                )}
                 <button className="heart" aria-label="В избранное">
                   <Heart size={17} />
                 </button>
@@ -303,10 +285,7 @@ export default function Home() {
                     <b>{product.price.toFixed(2).replace(".", ",")} BYN</b>
                     <span>за {product.unit}</span>
                   </div>
-                  <button
-                    className="add-btn"
-                    onClick={() => addToCart(product.id)}
-                  >
+                  <button className="add-btn" onClick={addToCart}>
                     В заявку
                   </button>
                 </div>
@@ -360,14 +339,9 @@ export default function Home() {
             Счета, спецификации, договоры и сопроводительные документы
             доступны заказчику без лишней переписки.
           </p>
-          <button
-            className="button primary"
-            onClick={() =>
-              showNotice("Раздел документов откроется после авторизации")
-            }
-          >
+          <Link href="/documents" className="button primary">
             Открыть документы <ArrowRight size={17} />
-          </button>
+          </Link>
         </div>
         <div className="document-list">
           {[
@@ -406,10 +380,10 @@ export default function Home() {
       <footer>
         <div className="footer-brand">ОРШАЛЁН</div>
         <div className="footer-links">
-          <a href="#catalog">Каталог</a>
-          <a href="#orders">Заказы</a>
-          <a href="#prices">Цены</a>
-          <a href="#documents">Документы</a>
+          <Link href="/catalog">Каталог</Link>
+          <Link href="/orders">Заказы</Link>
+          <Link href="/prices">Цены</Link>
+          <Link href="/documents">Документы</Link>
         </div>
         <div className="footer-contact">
           Отдел оптовых продаж

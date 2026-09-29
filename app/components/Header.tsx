@@ -1,90 +1,121 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  Bell,
+  Menu,
+  Search,
+  ShoppingCart,
+  UserRound,
+  X,
+} from "lucide-react";
+
+type User = {
+  id: number;
+  email: string;
+  role: string;
+  company: string | null;
+};
 
 export default function Header() {
-  const [user, setUser] = useState<any>(null);
+  const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/me')
+    fetch("/api/me")
       .then((res) => res.json())
-      .then((data) => setUser(data.user));
+      .then((data) => {
+        setUser(data.user || null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   return (
-    <>
-      {/* Верхняя чёрная полоска */}
-      <div className="bg-black text-white text-[13px] uppercase tracking-widest">
-        <div className="max-w-7xl mx-auto px-6 py-2 flex justify-between">
-          <span>Оптовые поставки льна от производителя</span>
-          <div className="flex gap-6">
-            <span>Доставка по СНГ</span>
-            <span>+375 (XXX) XX-XX-XX</span>
-          </div>
+    <header className="header">
+      <Link className="brand" href="/">
+        <span className="brand-main">ОРШАЛЁН</span>
+        <span className="brand-sub">РУПТП «ОРШАНСКИЙ ЛЬНОКОМБИНАТ»</span>
+      </Link>
+
+      <nav className={menuOpen ? "nav nav-open" : "nav"}>
+        <Link
+          href="/"
+          className={pathname === "/" ? "active" : ""}
+        >
+          Главная
+        </Link>
+        <Link
+          href="/catalog"
+          className={pathname?.startsWith("/catalog") ? "active" : ""}
+        >
+          Каталог
+        </Link>
+        <Link
+          href="/orders"
+          className={pathname?.startsWith("/orders") ? "active" : ""}
+        >
+          Мои заказы
+        </Link>
+        <Link
+          href="/prices"
+          className={pathname === "/prices" ? "active" : ""}
+        >
+          Цены
+        </Link>
+        <Link
+          href="/documents"
+          className={pathname?.startsWith("/documents") ? "active" : ""}
+        >
+          Документы
+        </Link>
+        <Link
+          href="/about"
+          className={pathname === "/about" ? "active" : ""}
+        >
+          О предприятии
+        </Link>
+      </nav>
+
+      <div className="header-actions">
+        <div className="search-mini">
+          <Search size={18} />
+          <input placeholder="Поиск продукции" />
         </div>
+
+        <button className="icon-btn" aria-label="Уведомления">
+          <Bell size={20} />
+        </button>
+
+        <Link href="/cart" className="icon-btn cart-btn" aria-label="Заявка">
+          <ShoppingCart size={20} />
+        </Link>
+
+        {loading ? (
+          <div style={{ width: 120 }} />
+        ) : user ? (
+          <Link href="/profile" className="login-btn">
+            <UserRound size={18} />
+            {user.company || user.email.split("@")[0]}
+          </Link>
+       ) : (
+  <Link href="/login" className="login-btn">
+    <UserRound size={18} /> Войти
+  </Link>
+)}
+
+        <button
+          className="mobile-menu"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Меню"
+        >
+          {menuOpen ? <X /> : <Menu />}
+        </button>
       </div>
-
-      {/* Основная шапка */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          {/* Верхний ряд: меню слева, логотип центр, действия справа */}
-          <div className="grid grid-cols-3 items-center py-6">
-            {/* Меню */}
-            <nav className="flex gap-8 text-xs uppercase tracking-widest">
-              <Link href="/catalog" className="hover:opacity-60 transition">
-                Каталог
-              </Link>
-              <Link href="/about" className="hover:opacity-60 transition">
-                О компании
-              </Link>
-              <Link href="/contacts" className="hover:opacity-60 transition">
-                Контакты
-              </Link>
-            </nav>
-
-            {/* Логотип по центру */}
-            <Link
-              href="/"
-              className="text-2xl font-black tracking-tight text-center"
-            >
-              ЛЬНОКОМБИНАТ
-            </Link>
-
-            {/* Действия справа */}
-            <div className="flex gap-6 justify-end items-center text-xs uppercase tracking-widest">
-              {user ? (
-                <>
-                  <Link
-                    href="/profile"
-                    className="hover:opacity-60 transition"
-                  >
-                    Кабинет
-                  </Link>
-                  <Link
-                    href="/cart"
-                    className="hover:opacity-60 transition"
-                  >
-                    Корзина
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="hover:opacity-60 transition">
-                    Войти
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="hover:opacity-60 transition"
-                  >
-                    Регистрация
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-    </>
+    </header>
   );
 }

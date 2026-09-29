@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [company, setCompany] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [company, setCompany] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, company }),
     });
 
@@ -27,69 +27,78 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error);
+      setError(data.error || "Ошибка регистрации");
     } else {
-      router.push('/login');
+      router.push("/profile");
+       router.refresh();
     }
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-6">Регистрация</h1>
+    <div className="auth-page">
+      <div className="auth-bg" />
+      <div className="auth-overlay" />
 
-      {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>
-      )}
+      <div className="auth-card">
+        <span className="auth-eyebrow">Оптовый портал</span>
+        <h1 className="auth-title">Регистрация</h1>
+        <p className="auth-subtitle">
+          Создайте аккаунт оптового заказчика, чтобы получить доступ
+          к персональным ценам и документам.
+        </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block mb-1 text-sm font-medium">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+        {error && <div className="auth-error">{error}</div>}
 
-        <div>
-          <label className="block mb-1 text-sm font-medium">Пароль</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label className="auth-label">Email</label>
+            <input
+              type="email"
+              className="auth-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@company.by"
+            />
+          </div>
 
-        <div>
-          <label className="block mb-1 text-sm font-medium">Компания</label>
-          <input
-            type="text"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+          <div className="auth-field">
+            <label className="auth-label">Пароль</label>
+            <input
+              type="password"
+              className="auth-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              placeholder="Минимум 6 символов"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-        </button>
-      </form>
+          <div className="auth-field">
+            <label className="auth-label">Компания</label>
+            <input
+              type="text"
+              className="auth-input"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="ООО «Ваша компания»"
+            />
+          </div>
 
-      <p className="mt-4 text-sm text-center">
-        Уже есть аккаунт?{' '}
-        <Link href="/login" className="text-blue-600 hover:underline">
-          Войти
-        </Link>
-      </p>
+          <button
+            type="submit"
+            className="auth-btn auth-btn-primary"
+            disabled={loading}
+          >
+            {loading ? "Регистрация..." : "Зарегистрироваться"}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          Уже есть аккаунт? <Link href="/login">Войти</Link>
+        </p>
+      </div>
     </div>
   );
 }

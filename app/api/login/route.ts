@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import db from '@/lib/db';
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import db from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
     return new Promise((resolve) => {
       db.get(
-        'SELECT * FROM users WHERE email = ?',
+        "SELECT * FROM users WHERE email = ?",
         [email],
         async (err, user: any) => {
           if (err) {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
           if (!user) {
             return resolve(
               NextResponse.json(
-                { error: 'Неверный email или пароль' },
+                { error: "Неверный email или пароль" },
                 { status: 401 }
               )
             );
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
           if (!valid) {
             return resolve(
               NextResponse.json(
-                { error: 'Неверный email или пароль' },
+                { error: "Неверный email или пароль" },
                 { status: 401 }
               )
             );
@@ -47,15 +47,18 @@ export async function POST(request: Request) {
             },
           });
 
-          response.cookies.set('userId', String(user.id), {
+          // ✅ Cookie на 30 дней
+          response.cookies.set("userId", String(user.id), {
             httpOnly: true,
-            maxAge: 60 * 60 * 24 * 7,
-            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            path: "/",
+            sameSite: "lax",
           });
-          response.cookies.set('userRole', user.role, {
+          response.cookies.set("userRole", user.role, {
             httpOnly: true,
-            maxAge: 60 * 60 * 24 * 7,
-            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            path: "/",
+            sameSite: "lax",
           });
 
           resolve(response);

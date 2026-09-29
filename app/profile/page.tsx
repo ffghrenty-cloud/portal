@@ -1,45 +1,167 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { LogOut } from "lucide-react";
+
+type User = {
+  id: number;
+  email: string;
+  role: string;
+  company: string | null;
+};
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/me')
+    fetch("/api/me")
       .then((res) => res.json())
       .then((data) => {
-        if (data.user) setUser(data.user);
-        else router.push('/login');
+        if (data.user) {
+          setUser(data.user);
+        } else {
+          router.push("/login");
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        router.push("/login");
       });
   }, [router]);
 
   async function handleLogout() {
-    await fetch('/api/logout', { method: 'POST' });
-    router.push('/');
-    router.refresh();
+  await fetch("/api/logout", { method: "POST" });
+  router.push("/login");      // ← переброс на вход
+  router.refresh();
+}
+
+  if (loading) {
+    return (
+      <div className="profile-page">
+        <div className="profile-container">
+          <div className="profile-empty">Загрузка...</div>
+        </div>
+      </div>
+    );
   }
 
-  if (!user) return <div className="p-8">Загрузка...</div>;
+  if (!user) return null;
+
+  const roleName =
+    user.role === "admin"
+      ? "Администратор"
+      : user.role === "manager"
+      ? "Менеджер"
+      : "Оптовый заказчик";
 
   return (
-    <div className="max-w-2xl mx-auto mt-8 p-8 bg-white rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-6">Личный кабинет</h1>
+    <div className="profile-page">
+      <div className="profile-container">
+        {/* Заголовок */}
+        <div className="profile-head">
+          <div>
+            <span className="profile-eyebrow">Личный кабинет</span>
+            <h1 className="profile-title">
+              {user.company || "Оптовый заказчик"}
+            </h1>
+          </div>
+          <div className="profile-actions">
+            <Link href="/catalog" className="button dark">
+              В каталог
+            </Link>
+          </div>
+        </div>
 
-      <div className="space-y-3 mb-8">
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Роль:</strong> {user.role}</p>
-        {user.company && <p><strong>Компания:</strong> {user.company}</p>}
+        {/* Сетка */}
+        <div className="profile-grid">
+          {/* Левая колонка */}
+          <div className="profile-sidebar">
+            <div className="profile-card">
+              <span className="profile-card-title">Аккаунт</span>
+              <p className="profile-company">
+                {user.company || "Без компании"}
+              </p>
+              <p className="profile-role">{roleName}</p>
+
+              <div style={{ marginTop: "24px" }}>
+                <div className="profile-info-row">
+                  <span className="profile-info-label">Email</span>
+                  <span className="profile-info-value">{user.email}</span>
+                </div>
+                <div className="profile-info-row">
+                  <span className="profile-info-label">ID клиента</span>
+                  <span className="profile-info-value">
+                    №{String(user.id).padStart(5, "0")}
+                  </span>
+                </div>
+                <div className="profile-info-row">
+                  <span className="profile-info-label">Статус</span>
+                  <span className="profile-info-value">Активен</span>
+                </div>
+              </div>
+            </div>
+
+            <nav className="profile-menu">
+              <Link href="/profile" className="active">
+                Обзор
+              </Link>
+              <Link href="/orders">Мои заказы</Link>
+              <Link href="/documents">Документы</Link>
+              <Link href="/profile/requisites">Мои реквизиты</Link>
+              <Link href="/profile/settings">Настройки</Link>
+
+              {/* Кнопка выхода внизу */}
+              <button
+                className="profile-menu-logout"
+                onClick={handleLogout}
+                type="button"
+              >
+                <span>Выйти из аккаунта</span>
+                <LogOut size={16} />
+              </button>
+            </nav>
+          </div>
+
+          {/* Правая колонка */}
+          <div className="profile-main">
+            <div className="profile-stats">
+              <div className="profile-stat">
+                <b>0</b>
+                <span>Активных заказов</span>
+              </div>
+              <div className="profile-stat">
+                <b>0</b>
+                <span>Всего заказов</span>
+              </div>
+              <div className="profile-stat">
+                <b>0 BYN</b>
+                <span>Сумма заказов</span>
+              </div>
+            </div>
+
+            <div className="profile-orders">
+              <span className="profile-card-title">Последние заказы</span>
+
+              <div className="profile-empty">
+                У вас пока нет заказов.{" "}
+                <Link href="/catalog">Перейти в каталог</Link>
+              </div>
+            </div>
+
+            <div className="profile-orders">
+              <span className="profile-card-title">Документы</span>
+
+              <div className="profile-empty">
+                Документов пока нет. Они появятся после оформления заказа.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <button
-        onClick={handleLogout}
-        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-      >
-        Выйти
-      </button>
     </div>
   );
 }
