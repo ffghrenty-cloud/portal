@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -18,6 +19,14 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("default");
   const { add: addToCart } = useCart();
+
+  const searchParams = useSearchParams();
+
+// Инициализация поиска из URL при загрузке
+useEffect(() => {
+  const q = searchParams?.get("q");
+  if (q) setSearch(q);
+}, [searchParams]);
 
   // Загрузка через класс ProductsApiClient
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import ProfileLayout from "@/app/components/ProfileLayout";
 
 type User = {
   id: number;
@@ -16,28 +16,32 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [orderStats, setOrderStats] = useState({ active: 0, total: 0, sum: 0 });
 
   useEffect(() => {
-    fetch("/api/me")
+    fetch("/api/me", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          router.push("/login");
-        }
+        if (data.user) setUser(data.user);
+        else router.push("/login");
         setLoading(false);
       })
-      .catch(() => {
-        router.push("/login");
-      });
+      .catch(() => router.push("/login"));
   }, [router]);
 
-async function handleLogout() {
-  await fetch("/api/logout", { method: "POST" });
-  router.push("/login");
-  router.refresh();
-}
+  useEffect(() => {
+    fetch("/api/orders", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        const orders = data.orders || [];
+        const active = orders.filter(
+          (o: any) => !["shipped", "cancelled"].includes(o.status)
+        ).length;
+        const sum = orders.reduce((s: number, o: any) => s + o.total, 0);
+        setOrderStats({ active, total: orders.length, sum });
+      })
+      .catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -61,7 +65,6 @@ async function handleLogout() {
   return (
     <div className="profile-page">
       <div className="profile-container">
-        {/* Заголовок */}
         <div className="profile-head">
           <div>
             <span className="profile-eyebrow">Личный кабинет</span>
@@ -76,9 +79,7 @@ async function handleLogout() {
           </div>
         </div>
 
-        {/* Сетка */}
         <div className="profile-grid">
-          {/* Левая колонка */}
           <div className="profile-sidebar">
             <div className="profile-card">
               <span className="profile-card-title">Аккаунт</span>
@@ -105,40 +106,21 @@ async function handleLogout() {
               </div>
             </div>
 
-            <nav className="profile-menu">
-              <Link href="/profile" className="active">
-                Обзор
-              </Link>
-              <Link href="/orders">Мои заказы</Link>
-              <Link href="/documents">Документы</Link>
-              <Link href="/profile/requisites">Мои реквизиты</Link>
-              <Link href="/profile/settings">Настройки</Link>
-
-              {/* Кнопка выхода внизу */}
-              <button
-                className="profile-menu-logout"
-                onClick={handleLogout}
-                type="button"
-              >
-                <span>Выйти из аккаунта</span>
-                <LogOut size={16} />
-              </button>
-            </nav>
+            <ProfileLayout />
           </div>
 
-          {/* Правая колонка */}
           <div className="profile-main">
             <div className="profile-stats">
               <div className="profile-stat">
-                <b>0</b>
+                <b>{orderStats.active}</b>
                 <span>Активных заказов</span>
               </div>
               <div className="profile-stat">
-                <b>0</b>
+                <b>{orderStats.total}</b>
                 <span>Всего заказов</span>
               </div>
               <div className="profile-stat">
-                <b>0 BYN</b>
+                <b>{orderStats.sum.toFixed(0)} BYN</b>
                 <span>Сумма заказов</span>
               </div>
             </div>
