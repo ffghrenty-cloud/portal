@@ -33,9 +33,9 @@ export default function ProfilePage() {
       });
   }, [router]);
 
-  async function handleLogout() {
+async function handleLogout() {
   await fetch("/api/logout", { method: "POST" });
-  router.push("/login");      // ← переброс на вход
+  router.push("/login");
   router.refresh();
 }
 

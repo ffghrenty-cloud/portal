@@ -25,15 +25,20 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Перезапрашиваем пользователя при каждом изменении URL
   useEffect(() => {
-    fetch("/api/me")
+    setLoading(true);
+    fetch("/api/me", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setUser(data.user || null);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        setUser(null);
+        setLoading(false);
+      });
+  }, [pathname]);
 
   return (
     <header className="header">
@@ -43,10 +48,7 @@ export default function Header() {
       </Link>
 
       <nav className={menuOpen ? "nav nav-open" : "nav"}>
-        <Link
-          href="/"
-          className={pathname === "/" ? "active" : ""}
-        >
+        <Link href="/" className={pathname === "/" ? "active" : ""}>
           Главная
         </Link>
         <Link
@@ -61,10 +63,7 @@ export default function Header() {
         >
           Мои заказы
         </Link>
-        <Link
-          href="/prices"
-          className={pathname === "/prices" ? "active" : ""}
-        >
+        <Link href="/prices" className={pathname === "/prices" ? "active" : ""}>
           Цены
         </Link>
         <Link
@@ -73,10 +72,7 @@ export default function Header() {
         >
           Документы
         </Link>
-        <Link
-          href="/about"
-          className={pathname === "/about" ? "active" : ""}
-        >
+        <Link href="/about" className={pathname === "/about" ? "active" : ""}>
           О предприятии
         </Link>
       </nav>
@@ -100,13 +96,13 @@ export default function Header() {
         ) : user ? (
           <Link href="/profile" className="login-btn">
             <UserRound size={18} />
-            {user.company || user.email.split("@")[0]}
+            {user.company || "Личный кабинет"}
           </Link>
-       ) : (
-  <Link href="/login" className="login-btn">
-    <UserRound size={18} /> Войти
-  </Link>
-)}
+        ) : (
+          <Link href="/login" className="login-btn">
+            <UserRound size={18} /> Войти
+          </Link>
+        )}
 
         <button
           className="mobile-menu"
