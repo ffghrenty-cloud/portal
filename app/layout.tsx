@@ -1,26 +1,26 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "./components/Header";
 
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
-  title: "Оршанский льнокомбинат — оптовый портал",
-  description: "Оптовые заказы льняной продукции",
+  title: "ОршаЛён — оптовый портал",
+  description:
+    "Веб-портал для оптовых заказчиков РУПТП «Оршанский льнокомбинат»",
 };
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru">
-      <body className={`${inter.className} bg-white text-black min-h-screen`}>
-        <Header />
-        <main>{children}</main>
-      </body>
+    <html lang="ru" className={inter.variable}>
+      <body>{children}</body>
     </html>
   );
 }
