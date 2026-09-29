@@ -1,5 +1,6 @@
 "use client";
 
+import { useCart } from "@/lib/useCart";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Search, X } from "lucide-react";
@@ -16,6 +17,7 @@ export default function CatalogPage() {
   const [priceMax, setPriceMax] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("default");
+  const { add: addToCart } = useCart();
 
   // Загрузка через класс ProductsApiClient
   useEffect(() => {
@@ -249,7 +251,12 @@ export default function CatalogPage() {
                       <div className="product-price">
                         <b>{product.formattedPrice}</b>
                       </div>
-                      <button className="add-btn">В заявку</button>
+                     <button
+                       className="add-btn"
+                          onClick={() => addToCart(product)}
+                       >
+                         В заявку
+                       </button>
                     </div>
                     <small>{product.description}</small>
                   </div>

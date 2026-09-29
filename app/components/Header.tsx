@@ -1,5 +1,6 @@
 "use client";
 
+import { useCart } from "@/lib/useCart";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { count: cartCount, ready: cartReady } = useCart();
 
   // Перезапрашиваем пользователя при каждом изменении URL
   useEffect(() => {
@@ -89,20 +91,30 @@ export default function Header() {
 
         <Link href="/cart" className="icon-btn cart-btn" aria-label="Заявка">
           <ShoppingCart size={20} />
+          {cartReady && cartCount > 0 && (
+    <span className="cart-count">{cartCount}</span>
+  )}
         </Link>
 
-        {loading ? (
-          <div style={{ width: 120 }} />
-        ) : user ? (
-          <Link href="/profile" className="login-btn">
-            <UserRound size={18} />
-            {user.company || "Личный кабинет"}
-          </Link>
-        ) : (
-          <Link href="/login" className="login-btn">
-            <UserRound size={18} /> Войти
-          </Link>
-        )}
+      {loading ? (
+  <div style={{ width: 120 }} />
+) : user ? (
+  <>
+    {user.role === "admin" && (
+      <Link href="/admin" className="header-admin-link">
+        Админка
+      </Link>
+    )}
+    <Link href="/profile" className="login-btn">
+      <UserRound size={18} />
+      {user.company || "Личный кабинет"}
+    </Link>
+  </>
+) : (
+  <Link href="/login" className="login-btn">
+    <UserRound size={18} /> Войти
+  </Link>
+)}
 
         <button
           className="mobile-menu"

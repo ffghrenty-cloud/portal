@@ -1,5 +1,6 @@
 "use client";
 
+import { useCart } from "@/lib/useCart";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, FileText, Heart, Package, Truck } from "lucide-react";

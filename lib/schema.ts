@@ -25,9 +25,15 @@ export function initDatabase(): Promise<void> {
       CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        status TEXT DEFAULT 'new',
+        status TEXT DEFAULT 'pending',
         total REAL NOT NULL,
+        contact_name TEXT,
+        contact_phone TEXT,
+        address TEXT,
+        comment TEXT,
+        manager TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
 
@@ -35,6 +41,7 @@ export function initDatabase(): Promise<void> {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
+        product_name TEXT,
         quantity INTEGER NOT NULL,
         price REAL NOT NULL,
         FOREIGN KEY (order_id) REFERENCES orders(id),
