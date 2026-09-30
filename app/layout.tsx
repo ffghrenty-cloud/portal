@@ -1,3 +1,4 @@
+import Assistant from "./components/Assistant";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body>
         <Header />
         <main>{children}</main>
+        <Assistant />
       </body>
     </html>
   );

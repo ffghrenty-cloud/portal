@@ -47,6 +47,16 @@ export function initDatabase(): Promise<void> {
         FOREIGN KEY (order_id) REFERENCES orders(id),
         FOREIGN KEY (product_id) REFERENCES products(id)
       );
+
+      CREATE TABLE IF NOT EXISTS admin_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        is_from_admin INTEGER DEFAULT 0,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
     `, (err) => {
       if (err) reject(err);
       else {

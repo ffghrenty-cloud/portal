@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Download } from "lucide-react";
 
@@ -21,7 +21,6 @@ const TITLES: Record<string, string> = {
 
 export default function DocumentTypePage() {
   const params = useParams();
-  const router = useRouter();
   const type = (params?.type as string) || "invoice";
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -68,7 +67,10 @@ export default function DocumentTypePage() {
           </div>
         ) : (
           <div className="static-table">
-            <div className="static-table-head" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+            <div
+              className="static-table-head"
+              style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}
+            >
               <div>Заказ</div>
               <div>Дата</div>
               <div>Сумма</div>

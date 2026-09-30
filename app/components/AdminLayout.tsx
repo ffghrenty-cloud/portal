@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileText, Package, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  FileText,
+  Package,
+  Users,
+  MessageCircle,
+} from "lucide-react";
 
 const MENU = [
   { href: "/admin", label: "Дашборд", icon: BarChart3 },
   { href: "/admin/orders", label: "Заказы", icon: FileText },
   { href: "/admin/products", label: "Товары", icon: Package },
   { href: "/admin/users", label: "Клиенты", icon: Users },
+  { href: "/admin/messages", label: "Сообщения", icon: MessageCircle },
 ];
 
 export default function AdminLayout({
@@ -17,6 +25,15 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [unread, setUnread] = useState(0);
+
+  // Загрузка счётчика при монтировании и при смене страницы
+  useEffect(() => {
+    fetch("/api/admin/messages/count", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setUnread(data.count || 0))
+      .catch(() => setUnread(0));
+  }, [pathname]);
 
   return (
     <div className="admin-layout">
@@ -29,6 +46,7 @@ export default function AdminLayout({
               item.href === "/admin"
                 ? pathname === "/admin"
                 : pathname?.startsWith(item.href);
+            const isMessages = item.href === "/admin/messages";
             return (
               <Link
                 key={item.href}
@@ -39,6 +57,9 @@ export default function AdminLayout({
               >
                 <Icon size={18} />
                 {item.label}
+                {isMessages && unread > 0 && !isActive && (
+                  <span className="admin-badge">{unread}</span>
+                )}
               </Link>
             );
           })}

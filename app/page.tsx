@@ -1,9 +1,11 @@
 "use client";
 
 import { useCart } from "@/lib/useCart";
-import { useMemo, useState } from "react";
+import { useFavorites } from "@/lib/useFavorites";
+import { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, FileText, Heart, Package, Truck } from "lucide-react";
+import StatsCarousel from "@/app/components/StatsCarousel";
 
 type Product = {
   id: number;
@@ -86,10 +88,16 @@ const categories = [
   { title: "Спецзаказы", sub: "Индивидуальные условия", icon: "05", filter: "Все" },
 ];
 
+type NoticeType = "cart" | "fav" | "fav-remove" | "info";
+
 export default function Home() {
   const [category, setCategory] = useState("Все");
   const [search, setSearch] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ text: string; type: NoticeType } | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const { add } = useCart();
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -99,14 +107,45 @@ export default function Home() {
     });
   }, [category, search]);
 
-  function addToCart() {
-    setNotice("Товар добавлен в заявку");
-    setTimeout(() => setNotice(""), 1800);
+  // Показ уведомления с авто-скрытием
+  function showNotice(text: string, type: NoticeType = "info") {
+    setNotice({ text, type });
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 2200);
   }
 
-  function showNotice(text: string) {
-    setNotice(text);
-    setTimeout(() => setNotice(""), 1800);
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    };
+  }, []);
+
+  function handleAddToCart(product: Product) {
+    add(product);
+    showNotice(`«${product.name}» добавлен в заявку`, "cart");
+  }
+
+  // ООП-подход: строим FavoriteItem из Product, не полагаемся на возврат toggleFavorite
+  function handleToggleFavorite(product: Product) {
+    const wasFavorite = isFavorite(product.id);
+
+    toggleFavorite({
+      id: Number(product.id),
+      name: product.name,
+      category: product.category,
+      price: Number(product.price),
+      unit: product.unit,
+      imageUrl: product.image,
+      badge: product.badge,
+      minOrder: product.minOrder,
+      inStock: product.inStock,
+    });
+
+    if (wasFavorite) {
+      showNotice(`«${product.name}» удалён из избранного`, "fav-remove");
+    } else {
+      showNotice(`«${product.name}» добавлен в избранное`, "fav");
+    }
   }
 
   return (
@@ -140,24 +179,7 @@ export default function Home() {
       </section>
 
       {/* СТАТИСТИКА */}
-      <section className="stats">
-        <div>
-          <b>90+</b>
-          <span>лет производства</span>
-        </div>
-        <div>
-          <b>30+</b>
-          <span>видов продукции</span>
-        </div>
-        <div>
-          <b>1 000+</b>
-          <span>оптовых заказчиков</span>
-        </div>
-        <div>
-          <b>24/7</b>
-          <span>отслеживание заказов</span>
-        </div>
-      </section>
+      <StatsCarousel />
 
       {/* КАТЕГОРИИ */}
       <section className="section" id="catalog">
@@ -209,7 +231,7 @@ export default function Home() {
           </p>
           <button
             className="button dark"
-            onClick={() => showNotice("Запрос на персональные цены подготовлен")}
+            onClick={() => showNotice("Запрос на персональные цены подготовлен", "info")}
           >
             Запросить условия <ArrowRight size={17} />
           </button>
@@ -271,8 +293,22 @@ export default function Home() {
                 {product.badge && (
                   <span className="badge">{product.badge}</span>
                 )}
-                <button className="heart" aria-label="В избранное">
-                  <Heart size={17} />
+                <button
+                  type="button"
+                  className={
+                    isFavorite(product.id) ? "heart heart-active" : "heart"
+                  }
+                  aria-label="В избранное"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleFavorite(product);
+                  }}
+                >
+                  <Heart
+                    size={17}
+                    fill={isFavorite(product.id) ? "currentColor" : "none"}
+                  />
                 </button>
               </div>
               <div className="product-info">
@@ -286,7 +322,10 @@ export default function Home() {
                     <b>{product.price.toFixed(2).replace(".", ",")} BYN</b>
                     <span>за {product.unit}</span>
                   </div>
-                  <button className="add-btn" onClick={addToCart}>
+                  <button
+                    className="add-btn"
+                    onClick={() => handleAddToCart(product)}
+                  >
                     В заявку
                   </button>
                 </div>
@@ -393,7 +432,15 @@ export default function Home() {
         </div>
       </footer>
 
-      {notice && <div className="toast">{notice}</div>}
+      {/* УВЕДОМЛЕНИЕ */}
+      {notice && (
+        <div className={`toast toast-${notice.type}`}>
+          {(notice.type === "fav" || notice.type === "fav-remove") && (
+            <Heart size={16} fill="currentColor" />
+          )}
+          <span>{notice.text}</span>
+        </div>
+      )}
     </main>
   );
 }

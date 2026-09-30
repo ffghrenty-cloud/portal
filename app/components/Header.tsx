@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
+  Heart,
   Menu,
   Search,
   ShoppingCart,
@@ -12,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useCart } from "@/lib/useCart";
+import { useFavorites } from "@/lib/useFavorites";
 import { Product } from "@/lib/Product";
 import { ProductsApiClient } from "@/lib/ProductsApiClient";
 
@@ -59,6 +61,7 @@ export default function Header() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const { count: cartCount, ready: cartReady } = useCart();
+  const { count: favCount, ready: favReady } = useFavorites();
 
   // Пользователь
   useEffect(() => {
@@ -312,6 +315,20 @@ export default function Header() {
             </div>
           )}
         </div>
+
+        {/* ИЗБРАННОЕ */}
+        <Link
+          href="/favorites"
+          className={
+            pathname === "/favorites" ? "icon-btn cart-btn active" : "icon-btn cart-btn"
+          }
+          aria-label="Избранное"
+        >
+          <Heart size={20} />
+          {favReady && favCount > 0 && (
+            <span className="cart-count">{favCount}</span>
+          )}
+        </Link>
 
         {/* КОРЗИНА */}
         <Link href="/cart" className="icon-btn cart-btn" aria-label="Заявка">

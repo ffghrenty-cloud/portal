@@ -2,12 +2,15 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/useCart";
+import { useFavorites } from "@/lib/useFavorites";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Search, X } from "lucide-react";
+import { ArrowRight, Heart, Search, X } from "lucide-react";
 import { Product } from "@/lib/Product";
 import { ProductFilter, SortOption } from "@/lib/ProductFilter";
 import { ProductsApiClient } from "@/lib/ProductsApiClient";
+
+type NoticeType = "cart" | "fav" | "fav-remove" | "info";
 
 export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -18,17 +21,21 @@ export default function CatalogPage() {
   const [priceMax, setPriceMax] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("default");
+
+  const [notice, setNotice] = useState<{ text: string; type: NoticeType } | null>(null);
+
   const { add: addToCart } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const searchParams = useSearchParams();
 
-// Инициализация поиска из URL при загрузке
-useEffect(() => {
-  const q = searchParams?.get("q");
-  if (q) setSearch(q);
-}, [searchParams]);
+  // Инициализация поиска из URL
+  useEffect(() => {
+    const q = searchParams?.get("q");
+    if (q) setSearch(q);
+  }, [searchParams]);
 
-  // Загрузка через класс ProductsApiClient
+  // Загрузка товаров
   useEffect(() => {
     const client = new ProductsApiClient();
     client
@@ -40,19 +47,19 @@ useEffect(() => {
       .catch(() => setLoading(false));
   }, []);
 
-  // Категории с количеством — статический метод класса
+  // Категории с количеством
   const categoriesWithCounts = useMemo(
     () => ProductFilter.getCategoriesWithCounts(products),
     [products]
   );
 
-  // Границы цен — статический метод класса
+  // Границы цен
   const priceBounds = useMemo(
     () => ProductFilter.getPriceBounds(products),
     [products]
   );
 
-  // Фильтрация через объект ProductFilter (fluent API)
+  // Фильтрация
   const filteredProducts = useMemo(() => {
     const filter = new ProductFilter(products);
     return filter
@@ -79,6 +86,37 @@ useEffect(() => {
 
   function removeCategory(name: string) {
     setSelectedCategories((prev) => prev.filter((c) => c !== name));
+  }
+
+  function showNotice(text: string, type: NoticeType = "info") {
+    setNotice({ text, type });
+    setTimeout(() => setNotice(null), 2200);
+  }
+
+  // ООП-подход: строим FavoriteItem из Product явно; тост — по состоянию ДО
+  function handleToggleFavorite(product: Product) {
+    const wasFavorite = isFavorite(product.id);
+
+    toggleFavorite({
+      id: Number(product.id),
+      name: product.name,
+      sku: product.sku,
+      category: product.category,
+      price: Number(product.price),
+      description: product.description,
+      imageUrl: product.imageUrl,
+    });
+
+    if (wasFavorite) {
+      showNotice(`«${product.name}» удалён из избранного`, "fav-remove");
+    } else {
+      showNotice(`«${product.name}» добавлен в избранное`, "fav");
+    }
+  }
+
+  function handleAddToCart(product: Product) {
+    addToCart(product);
+    showNotice(`«${product.name}» добавлен в заявку`, "cart");
   }
 
   const hasActiveFilters =
@@ -251,7 +289,27 @@ useEffect(() => {
                         Нет фото
                       </div>
                     )}
+
+                    {/* СЕРДЕЧКО */}
+                    <button
+                      type="button"
+                      className={
+                        isFavorite(product.id) ? "heart heart-active" : "heart"
+                      }
+                      aria-label="В избранное"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleToggleFavorite(product);
+                      }}
+                    >
+                      <Heart
+                        size={17}
+                        fill={isFavorite(product.id) ? "currentColor" : "none"}
+                      />
+                    </button>
                   </div>
+
                   <div className="product-info">
                     <span className="product-category">{product.category}</span>
                     <h3>{product.name}</h3>
@@ -260,12 +318,12 @@ useEffect(() => {
                       <div className="product-price">
                         <b>{product.formattedPrice}</b>
                       </div>
-                     <button
-                       className="add-btn"
-                          onClick={() => addToCart(product)}
-                       >
-                         В заявку
-                       </button>
+                      <button
+                        className="add-btn"
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        В заявку
+                      </button>
                     </div>
                     <small>{product.description}</small>
                   </div>
@@ -275,6 +333,16 @@ useEffect(() => {
           )}
         </div>
       </div>
+
+      {/* УВЕДОМЛЕНИЕ */}
+      {notice && (
+        <div className={`toast toast-${notice.type}`}>
+          {(notice.type === "fav" || notice.type === "fav-remove") && (
+            <Heart size={16} fill="currentColor" />
+          )}
+          <span>{notice.text}</span>
+        </div>
+      )}
     </div>
   );
 }
