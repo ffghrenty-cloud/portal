@@ -53,7 +53,7 @@ export default function Home() {
     return products.filter((p) => {
       const byCategory = category === "Все" || p.category === category;
       const query = search.trim().toLowerCase();
-      const bySearch = !query || p.name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query);
+      const bySearch = !query || p.name.toLowerCase().includes(query) || (p.category || "").toLowerCase().includes(query) || (p.sku || "").toLowerCase().includes(query);
       return byCategory && bySearch;
     });
   }, [category, search]);
@@ -271,13 +271,12 @@ export default function Home() {
                 </button>
               </div>
               <div className="product-info">
-                <span className="product-category">{product.category}</span>
+                <span className="product-category">{product.category || "Без категории"}</span>
                 <h3>{product.name}</h3>
                 {product.sku && <div className="product-stock">Артикул: {product.sku}</div>}
                 <div className="product-bottom">
                   <div className="product-price">
                     <b>{product.price.toFixed(2).replace(".", ",")} BYN</b>
-                    <span>за единицу</span>
                   </div>
                   <button
                     className="add-btn"
