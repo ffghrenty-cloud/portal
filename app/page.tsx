@@ -6,79 +6,8 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, FileText, Heart, Package, Truck } from "lucide-react";
 import StatsCarousel from "@/app/components/StatsCarousel";
-
-type Product = {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  unit: string;
-  image: string;
-  badge?: string;
-  minOrder: string;
-  inStock: boolean;
-};
-
-const products: Product[] = [
-  {
-    id: 1,
-    name: "Льняная ткань «Классик»",
-    category: "Ткани",
-    price: 12.8,
-    unit: "м",
-    image:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=85",
-    badge: "Хит",
-    minOrder: "от 50 м",
-    inStock: true,
-  },
-  {
-    id: 2,
-    name: "Льняная ткань костюмная",
-    category: "Ткани",
-    price: 18.4,
-    unit: "м",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
-    minOrder: "от 30 м",
-    inStock: true,
-  },
-  {
-    id: 3,
-    name: "Пряжа льняная №40",
-    category: "Пряжа",
-    price: 9.7,
-    unit: "кг",
-    image:
-      "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=85",
-    badge: "Новинка",
-    minOrder: "от 10 кг",
-    inStock: true,
-  },
-  {
-    id: 4,
-    name: "Льняное полотно отбеленное",
-    category: "Ткани",
-    price: 15.2,
-    unit: "м",
-    image:
-      "https://images.unsplash.com/photo-1583743814966-8936f37f384f?auto=format&fit=crop&w=900&q=85",
-    minOrder: "от 50 м",
-    inStock: false,
-  },
-  {
-    id: 5,
-    name: "Столовый текстиль",
-    category: "Домашний текстиль",
-    price: 21.5,
-    unit: "компл.",
-    image:
-      "https://images.unsplash.com/photo-1583845112203-454c7b7e1b66?auto=format&fit=crop&w=900&q=85",
-    badge: "Опт",
-    minOrder: "от 20 компл.",
-    inStock: true,
-  },
-];
+import { Product } from "@/lib/Product";
+import { ProductsApiClient } from "@/lib/ProductsApiClient";
 
 const categories = [
   { title: "Льняные ткани", sub: "Рулонные материалы", icon: "01", filter: "Ткани" },
@@ -93,16 +22,38 @@ type NoticeType = "cart" | "fav" | "fav-remove" | "info";
 export default function Home() {
   const [category, setCategory] = useState("Все");
   const [search, setSearch] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [productsError, setProductsError] = useState("");
   const [notice, setNotice] = useState<{ text: string; type: NoticeType } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const { add } = useCart();
 
+  useEffect(() => {
+    let cancelled = false;
+    new ProductsApiClient()
+      .fetchAll()
+      .then((data) => {
+        if (!cancelled) setProducts(data);
+      })
+      .catch(() => {
+        if (!cancelled) setProductsError("Не удалось загрузить каталог. Попробуйте открыть каталог товаров.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProducts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const byCategory = category === "Все" || p.category === category;
-      const bySearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const query = search.trim().toLowerCase();
+      const bySearch = !query || p.name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query) || p.sku.toLowerCase().includes(query);
       return byCategory && bySearch;
     });
   }, [category, search]);
@@ -132,13 +83,11 @@ export default function Home() {
     toggleFavorite({
       id: Number(product.id),
       name: product.name,
+      sku: product.sku,
       category: product.category,
       price: Number(product.price),
-      unit: product.unit,
-      imageUrl: product.image,
-      badge: product.badge,
-      minOrder: product.minOrder,
-      inStock: product.inStock,
+      description: product.description,
+      imageUrl: product.imageUrl,
     });
 
     if (wasFavorite) {
@@ -285,13 +234,23 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="products-grid">
-          {filteredProducts.map((product) => (
+        {loadingProducts ? (
+          <p role="status">Загрузка товаров...</p>
+        ) : productsError ? (
+          <p role="alert">{productsError}</p>
+        ) : filteredProducts.length === 0 ? (
+          <p>По выбранным условиям товары не найдены.</p>
+        ) : (
+          <div className="products-grid">
+            {filteredProducts.map((product) => (
             <article className="product-card" key={product.id}>
               <div className="product-image">
-                <img src={product.image} alt={product.name} />
-                {product.badge && (
-                  <span className="badge">{product.badge}</span>
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt={product.name} />
+                ) : (
+                  <div className="product-image-placeholder" role="img" aria-label="Изображение товара отсутствует">
+                    Изображение не добавлено
+                  </div>
                 )}
                 <button
                   type="button"
@@ -314,13 +273,11 @@ export default function Home() {
               <div className="product-info">
                 <span className="product-category">{product.category}</span>
                 <h3>{product.name}</h3>
-                <div className="product-stock">
-                  {product.inStock ? "В наличии" : "Под заказ"}
-                </div>
+                {product.sku && <div className="product-stock">Артикул: {product.sku}</div>}
                 <div className="product-bottom">
                   <div className="product-price">
                     <b>{product.price.toFixed(2).replace(".", ",")} BYN</b>
-                    <span>за {product.unit}</span>
+                    <span>за единицу</span>
                   </div>
                   <button
                     className="add-btn"
@@ -329,11 +286,12 @@ export default function Home() {
                     В заявку
                   </button>
                 </div>
-                <small>Минимальная партия: {product.minOrder}</small>
+                {product.description && <small>{product.description}</small>}
               </div>
             </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ПРОЦЕСС РАБОТЫ */}
