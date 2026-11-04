@@ -13,6 +13,7 @@ type Product = {
   price: number;
   description: string | null;
   image_url: string | null;
+  stock_quantity: number;
 };
 
 const EMPTY: Partial<Product> = {
@@ -22,6 +23,7 @@ const EMPTY: Partial<Product> = {
   price: 0,
   description: "",
   image_url: "",
+  stock_quantity: 0,
 };
 
 export default function AdminProductsPage() {
@@ -87,7 +89,7 @@ export default function AdminProductsPage() {
               <div>Название</div>
               <div>Артикул</div>
               <div>Категория</div>
-              <div>Цена</div>
+              <div>Цена / остаток</div>
               <div>Действия</div>
             </div>
             {products.map((p) => (
