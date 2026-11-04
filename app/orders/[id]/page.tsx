@@ -16,6 +16,9 @@ type Order = {
   manager: string | null;
   created_at: string;
   updated_at: string;
+  tracking_carrier: string | null;
+  tracking_number: string | null;
+  estimated_delivery: string | null;
 };
 
 type OrderEvent = {
@@ -62,22 +65,33 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/orders/${id}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-        } else {
-          setOrder(data.order);
-          setItems(data.items || []);
-          setEvents(data.events || []);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Не удалось загрузить заказ");
-        setLoading(false);
-      });
+    let active = true;
+    const loadOrder = () => {
+      fetch(`/api/orders/${id}`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!active) return;
+          if (data.error) {
+            setError(data.error);
+          } else {
+            setOrder(data.order);
+            setItems(data.items || []);
+            setEvents(data.events || []);
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setError("Не удалось загрузить заказ");
+          setLoading(false);
+        });
+    };
+    loadOrder();
+    const refreshId = window.setInterval(loadOrder, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshId);
+    };
   }, [id]);
 
   function formatDate(iso: string): string {
@@ -148,7 +162,15 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        <section style={{ margin: "26px 0 34px", padding: "24px", background: "#fff", border: "1px solid #e8e1d8" }}>
+        <section style={{ margin: "26px 0 18px", padding: "22px 24px", background: "#fff", border: "1px solid #e8e1d8" }}>
+          <h2 className="order-detail-section" style={{ marginBottom: 16 }}>Отслеживание доставки</h2>
+          <div className="profile-info-row"><span className="profile-info-label">Перевозчик</span><span className="profile-info-value">{order.tracking_carrier || "Ещё не назначен"}</span></div>
+          <div className="profile-info-row"><span className="profile-info-label">Номер отправления</span><span className="profile-info-value">{order.tracking_number || "Появится после отгрузки"}</span></div>
+          <div className="profile-info-row"><span className="profile-info-label">Ожидаемая доставка</span><span className="profile-info-value">{order.estimated_delivery ? new Date(order.estimated_delivery + "T00:00:00").toLocaleDateString("ru-RU") : "Дата уточняется"}</span></div>
+          <small style={{ color: "#8b837a" }}>Статус и история обновляются автоматически каждые 15 секунд.</small>
+        </section>
+
+        <section style={{ margin: "18px 0 34px", padding: "24px", background: "#fff", border: "1px solid #e8e1d8" }}>
           <h2 className="order-detail-section" style={{ marginBottom: 22 }}>История и этапы выполнения</h2>
           {events.length === 0 ? (
             <p style={{ color: "#777" }}>История этапов пока не заполнена.</p>
