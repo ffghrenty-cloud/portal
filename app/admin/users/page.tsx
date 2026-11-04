@@ -12,6 +12,8 @@ type User = {
   created_at: string;
   orders_count: number;
   orders_sum: number;
+  discount_percent: number;
+  discount_valid_until: string | null;
 };
 
 export default function AdminUsersPage() {
@@ -44,7 +46,8 @@ export default function AdminUsersPage() {
               <div>Email</div>
               <div>Компания</div>
               <div>Роль</div>
-              <div>Заказов</div>\n              <div>Скидка</div>
+              <div>Заказов</div>
+              <div>Скидка</div>
             </div>
             {users.map((u) => (
               <div className="admin-table-row" key={u.id}>
@@ -60,7 +63,8 @@ export default function AdminUsersPage() {
                       : "Клиент"}
                   </span>
                 </div>
-                <div>{u.orders_count}</div>\n                <div>{u.role === "client" ? <DiscountEditor user={u} /> : "—"}</div>
+                <div>{u.orders_count}</div>
+                <div>{u.role === "client" ? <DiscountEditor user={u} /> : "—"}</div>
               </div>
             ))}
           </div>
