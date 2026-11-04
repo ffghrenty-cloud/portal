@@ -47,7 +47,16 @@ export async function GET(
                 if (err3) {
                   return resolve(NextResponse.json({ error: err3.message }, { status: 500 }));
                 }
-                resolve(NextResponse.json({ order, items, events }));
+                db.all(
+                  "SELECT id, title, message, is_read, created_at FROM order_notifications WHERE order_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC",
+                  [id, userId],
+                  (notificationError, notifications) => {
+                    if (notificationError) {
+                      return resolve(NextResponse.json({ error: notificationError.message }, { status: 500 }));
+                    }
+                    resolve(NextResponse.json({ order, items, events, notifications }));
+                  }
+                );
               }
             );
           }
