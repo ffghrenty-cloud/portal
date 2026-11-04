@@ -11,7 +11,7 @@ type Task = {
 };
 const STAGES: Record<string, string> = {
   manager_review: "Проверка менеджером", warehouse: "Приёмка на складе", picking: "Комплектация",
-  quality_check: "Контроль качества", packing: "Упаковка", shipping: "Отгрузка и логистика",
+  quality_check: "Контроль качества", packing: "Упаковка", shipment_preparation: "Подготовка и загрузка отправки", shipping: "Отгрузка и логистика", delivery: "Доставка клиенту",
 };
 export default function StaffTasksPage() {
   const router = useRouter();
