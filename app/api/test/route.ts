@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function GET() {
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get('SELECT 1 as ok', (err, row) => {
       if (err) {
         resolve(NextResponse.json({ works: false, error: err.message }));
