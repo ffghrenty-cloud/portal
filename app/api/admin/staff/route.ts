@@ -15,7 +15,7 @@ async function currentUser() {
 export async function GET() {
   const actor = await currentUser();
   if (!actor || actor.role !== "admin") return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
-  return new Promise((resolve) => db.all(
+  return new Promise<NextResponse>((resolve) => db.all(
     "SELECT id, email, company, role, created_at FROM users WHERE role IN ('admin','manager','senior_manager','warehouse','quality','packer','logistics') ORDER BY created_at DESC",
     (err, staff) => resolve(err ? NextResponse.json({ error: err.message }, { status: 500 }) : NextResponse.json({ staff }))
   ));
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (password.length < 8) return NextResponse.json({ error: "Пароль должен содержать минимум 8 символов" }, { status: 400 });
     if (!STAFF_ROLES.includes(role)) return NextResponse.json({ error: "Недопустимая роль сотрудника" }, { status: 400 });
     const hash = await bcrypt.hash(password, 10);
-    return new Promise((resolve) => db.run(
+    return new Promise<NextResponse>((resolve) => db.run(
       "INSERT INTO users (email, password, company, role) VALUES (?, ?, ?, ?)",
       [email, hash, company, role],
       function (err) {
