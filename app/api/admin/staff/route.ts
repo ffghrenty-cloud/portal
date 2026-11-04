@@ -16,7 +16,7 @@ export async function GET() {
   const actor = await currentUser();
   if (!actor || actor.role !== "admin") return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   return new Promise<NextResponse>((resolve) => db.all(
-    "SELECT id, email, company, role, created_at FROM users WHERE role IN ('admin','manager','senior_manager','warehouse','quality','packer','logistics') ORDER BY created_at DESC",
+    "SELECT id, email, company, role, created_at FROM users WHERE role IN ('admin','manager','senior_manager','order_receiver','warehouse','quality','packer','shipment_preparer','logistics') ORDER BY created_at DESC",
     (err, staff) => resolve(err ? NextResponse.json({ error: err.message }, { status: 500 }) : NextResponse.json({ staff }))
   ));
 }
@@ -42,8 +42,8 @@ export async function POST(request: Request) {
         const staffId = this.lastID;
         const pendingStages: Record<string, Array<{ status: string; stage: string }>> = {
           order_receiver: [{ status: "pending", stage: "stock_check" }],
-          manager: [{ status: "pending", stage: "manager_review" }],
-          senior_manager: [{ status: "pending", stage: "manager_review" }],
+          manager: [{ status: "stock_checked", stage: "manager_review" }],
+          senior_manager: [{ status: "stock_checked", stage: "manager_review" }],
           warehouse: [{ status: "confirmed", stage: "warehouse" }, { status: "warehouse", stage: "picking" }],
           quality: [{ status: "picking", stage: "quality_check" }],
           packer: [{ status: "quality_check", stage: "packing" }],
