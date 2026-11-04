@@ -84,7 +84,7 @@ export async function PATCH(request: Request) {
               }).join("; ");
               db.run("UPDATE orders SET status = 'stock_checked', stock_checked_by = ?, stock_checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [actor.id, orderId], (orderErr) => {
                 if (orderErr) return resolve(NextResponse.json({ error: orderErr.message }, { status: 500 }));
-                db.run("UPDATE order_stage_tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?", [task.id], (taskUpdateErr) => {
+                db.run("UPDATE order_stage_tasks SET status = 'completed', note = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?", [summary, task.id], (taskUpdateErr) => {
                   if (taskUpdateErr) return resolve(NextResponse.json({ error: taskUpdateErr.message }, { status: 500 }));
                   db.run(
                     "INSERT INTO order_events (order_id, status, title, description, actor_user_id) SELECT id, status, 'Наличие проверено складом', ?, ? FROM orders WHERE id = ?",
