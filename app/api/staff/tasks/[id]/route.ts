@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
-import { advanceOrderWorkflow, notifyOrderCustomer } from "@/lib/order-automation";
+import { advanceOrderWorkflow } from "@/lib/order-automation";
 
 const STAGE_RULES: Record<string, { role: string; orderStatus: string; title: string; allowedFrom: string[] }> = {
   manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером", allowedFrom: ["pending"] },
@@ -54,13 +54,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                     resolve(NextResponse.json({ error: eventErr.message }, { status: 500 }));
                     return;
                   }
-                  await notifyOrderCustomer(
-                    task.order_id,
-                    "Этап заказа завершён",
-                    rule.title
-                  );
                   await advanceOrderWorkflow(task.order_id, task.stage, Number(userId));
-                  resolve(NextResponse.json({ ok: true, nextStage: STAGE_RULES[task.stage] ? undefined : undefined }));
+                  resolve(NextResponse.json({ ok: true }));
                 }
               );
             });
