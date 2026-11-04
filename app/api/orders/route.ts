@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
+import { assignStageAutomatically, notifyOrderCustomer } from "@/lib/order-automation";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -96,6 +97,12 @@ export async function POST(request: Request) {
                 completed++;
                 if (completed === totalItems && !hasError) {
                   stmt.finalize();
+                  void assignStageAutomatically(orderId, "manager_review");
+                  void notifyOrderCustomer(
+                    orderId,
+                    "Заказ принят",
+                    "Заказ зарегистрирован. Менеджер автоматически получил задачу на проверку."
+                  );
                   resolve(NextResponse.json({ ok: true, orderId }));
                 }
               }
