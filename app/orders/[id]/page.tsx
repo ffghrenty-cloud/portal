@@ -55,7 +55,8 @@ type OrderItem = {
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   draft: { label: "Черновик", className: "draft" },
-  pending: { label: "На согласовании", className: "pending" },
+  pending: { label: "Ожидает проверки наличия", className: "pending" },
+  stock_checked: { label: "Наличие проверено", className: "confirmed" },
   confirmed: { label: "Подтверждён", className: "confirmed" },
   production: { label: "В производстве", className: "pending" },
   ready: { label: "Готов к отгрузке", className: "confirmed" },
