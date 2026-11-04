@@ -4,8 +4,8 @@ import db from "@/lib/db";
 import { advanceOrderWorkflow } from "@/lib/order-automation";
 
 const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string; title: string; allowedFrom: string[] }> = {
-  stock_check: { role: "order_receiver", orderStatus: "pending", title: "Наличие товаров проверено", allowedFrom: ["pending"] },
-  manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером", allowedFrom: ["pending"] },
+  stock_check: { role: "order_receiver", orderStatus: "stock_checked", title: "Наличие товаров проверено", allowedFrom: ["pending"] },
+  manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером", allowedFrom: ["stock_checked"] },
   warehouse: { role: "warehouse", orderStatus: "warehouse", title: "Заказ принят складом", allowedFrom: ["confirmed", "production"] },
   picking: { role: "warehouse", orderStatus: "picking", title: "Комплектация заказа завершена", allowedFrom: ["warehouse"] },
   quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
