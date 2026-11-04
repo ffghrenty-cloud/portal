@@ -51,6 +51,16 @@ export default function AdminMessagesPage() {
 
   useEffect(() => {
     load();
+    const targetUserId = Number(new URLSearchParams(window.location.search).get("userId"));
+    if (targetUserId > 0) {
+      fetch("/api/admin/users", { cache: "no-store" }).then(res => res.json()).then(data => {
+        const user = (data.users || []).find((item: any) => Number(item.id) === targetUserId);
+        if (user) {
+          setInitialChatUser({ userId: targetUserId, email: user.email, company: user.company, messages: [], lastAt: "", unread: 0 });
+          setExpanded(targetUserId);
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -136,6 +146,8 @@ export default function AdminMessagesPage() {
 
   if (initialChatUser && !seen.has(initialChatUser.userId)) groups.push(initialChatUser);
 
+  if (initialChatUser && !seen.has(initialChatUser.userId)) groups.push(initialChatUser);
+
   groups.sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1));
 
   for (const g of groups) {
@@ -201,10 +213,7 @@ export default function AdminMessagesPage() {
                         {group.company || group.email}
                       </div>
                       <div className="msg-item-preview">
-                        {lastMessage.is_from_admin ? "Вы: " : ""}
-                        {lastMessage.text.length > 60
-                          ? lastMessage.text.slice(0, 60) + "…"
-                          : lastMessage.text}
+                        {lastMessage ? (lastMessage.is_from_admin ? "Вы: " : "") + (lastMessage.text.length > 60 ? lastMessage.text.slice(0, 60) + "…" : lastMessage.text) : "Новый диалог"}
                       </div>
                     </div>
 
