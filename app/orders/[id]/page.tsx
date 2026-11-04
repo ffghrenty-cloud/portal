@@ -83,33 +83,29 @@ export default function OrderDetailPage() {
     if (!id) return;
     let active = true;
     const loadOrder = () => {
-      fetch(`/api/orders/${id}`, { cache: "no-store" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!active) return;
-          if (data.error) {
-            setError(data.error);
-          } else {
-            setOrder(data.order);
-            setItems(data.items || []);
-            setEvents(data.events || []);
-            setNotifications(data.notifications || []);
-            setReview(reviewData.review || null);
-          }
-          setLoading(false);
-        })
-        .catch(() => {
-          if (!active) return;
-          setError("Не удалось загрузить заказ");
-          setLoading(false);
-        });
+      Promise.all([
+        fetch(`/api/orders/${id}`, { cache: "no-store" }).then(res => res.json()),
+        fetch(`/api/orders/${id}/review`, { cache: "no-store" }).then(res => res.json()),
+      ]).then(([data, reviewData]) => {
+        if (!active) return;
+        if (data.error) setError(data.error);
+        else {
+          setOrder(data.order);
+          setItems(data.items || []);
+          setEvents(data.events || []);
+          setNotifications(data.notifications || []);
+          setReview(reviewData.review || null);
+        }
+        setLoading(false);
+      }).catch(() => {
+        if (!active) return;
+        setError("Не удалось загрузить заказ");
+        setLoading(false);
+      });
     };
     loadOrder();
     const refreshId = window.setInterval(loadOrder, 15000);
-    return () => {
-      active = false;
-      window.clearInterval(refreshId);
-    };
+    return () => { active = false; window.clearInterval(refreshId); };
   }, [id]);
 
   async function submitReview(e: React.FormEvent) {
