@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import db from "@/lib/db";
+import { assignStageAutomatically } from "@/lib/order-automation";
 
 const STAFF_ROLES = ["manager", "senior_manager", "warehouse", "quality", "packer", "logistics"];
 
@@ -38,7 +39,15 @@ export async function POST(request: Request) {
       [email, hash, company, role],
       function (err) {
         if (err) return resolve(NextResponse.json({ error: err.message.includes("UNIQUE") ? "Пользователь с таким email уже существует" : err.message }, { status: err.message.includes("UNIQUE") ? 409 : 500 }));
-        resolve(NextResponse.json({ ok: true, staff: { id: this.lastID, email, company, role } }, { status: 201 }));
+        const staffId = this.lastID;
+        if (role === "manager" || role === "senior_manager") {
+          db.all("SELECT id FROM orders WHERE status = 'pending' ORDER BY created_at ASC", (ordersError, orders: any[]) => {
+            if (!ordersError && orders) {
+              for (const order of orders) void assignStageAutomatically(order.id, "manager_review", staffId);
+            }
+          });
+        }
+        resolve(NextResponse.json({ ok: true, staff: { id: staffId, email, company, role } }, { status: 201 }));
       }
     ));
   } catch {
