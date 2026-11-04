@@ -36,6 +36,7 @@ export default function AdminMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState<Record<number, string>>({});
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [initialChatUser, setInitialChatUser] = useState<UserGroup | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +134,8 @@ export default function AdminMessagesPage() {
     if (m.created_at > g.lastAt) g.lastAt = m.created_at;
   }
 
+  if (initialChatUser && !seen.has(initialChatUser.userId)) groups.push(initialChatUser);
+
   groups.sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1));
 
   for (const g of groups) {
@@ -210,7 +213,7 @@ export default function AdminMessagesPage() {
                         <span className="admin-badge">{group.unread}</span>
                       )}
                       <span className="msg-item-time">
-                        {formatTime(lastMessage.created_at)}
+                        {lastMessage ? formatTime(lastMessage.created_at) : "Новый"}
                       </span>
                       <button
                         className="msg-item-delete"
