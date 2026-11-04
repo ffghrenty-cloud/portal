@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import db from "@/lib/db";
 import { advanceOrderWorkflow } from "@/lib/order-automation";
 
-const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string; title: string; allowedFrom: string[] }> = {\n  stock_check: { role: "order_receiver", orderStatus: "pending", title: "Наличие товаров проверено", allowedFrom: ["pending"] },
+const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string; title: string; allowedFrom: string[] }> = {
+  stock_check: { role: "order_receiver", orderStatus: "pending", title: "Наличие товаров проверено", allowedFrom: ["pending"] },
   manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером", allowedFrom: ["pending"] },
   warehouse: { role: "warehouse", orderStatus: "warehouse", title: "Заказ принят складом", allowedFrom: ["confirmed", "production"] },
   picking: { role: "warehouse", orderStatus: "picking", title: "Комплектация заказа завершена", allowedFrom: ["warehouse"] },
   quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
-  packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },\n  shipment_preparation: { role: "shipment_preparer", orderStatus: "ready", title: "Заказ загружен и готов к отправке", allowedFrom: ["packing"] },
+  packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },
+  shipment_preparation: { role: "shipment_preparer", orderStatus: "ready", title: "Заказ загружен и готов к отправке", allowedFrom: ["packing"] },
   shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["packing", "ready"] },
   delivery: { role: "logistics", orderStatus: "delivered", title: "Заказ доставлен", allowedFrom: ["shipped"] },
 };
@@ -28,7 +30,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     (err, task: any) => {
       if (err || !task) return resolve(NextResponse.json({ error: "Задание не найдено" }, { status: 404 }));
       if (task.assigned_user_id !== Number(userId) && task.actor_role !== "admin") return resolve(NextResponse.json({ error: "Это задание назначено другому сотруднику" }, { status: 403 }));
-      if (task.stage === "stock_check") return resolve(NextResponse.json({ error: "Для проверки наличия используйте отдельное рабочее место приёмщика" }, { status: 400 }));\n      const rule = STAGE_RULES[task.stage];
+      if (task.stage === "stock_check") return resolve(NextResponse.json({ error: "Для проверки наличия используйте отдельное рабочее место приёмщика" }, { status: 400 }));
+      const rule = STAGE_RULES[task.stage];
       if (!rule || (task.actor_role !== "admin" && !(Array.isArray(rule.role) ? rule.role.includes(task.actor_role) : task.actor_role === rule.role) && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
 
