@@ -98,7 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           [id, newStatus, allShipped ? "Заказ отгружен полностью" : "Часть заказа отгружена", `Создано отправление №${fulfillment.lastID}. Отгружено позиций: ${requested.size}.`, actorId]
         );
         await run("COMMIT");
-        void notifyOrderCustomer(id, allShipped ? "Заказ отгружен полностью" : "Часть заказа отправлена", allShipped ? "Все позиции заказа переданы в доставку." : "Часть заказа передана в доставку. Остальные позиции будут отправлены отдельно.");
+        void notifyOrderCustomer(Number(id), allShipped ? "Заказ отгружен полностью" : "Часть заказа отправлена", allShipped ? "Все позиции заказа переданы в доставку." : "Часть заказа передана в доставку. Остальные позиции будут отправлены отдельно.");
         resolve(NextResponse.json({ ok: true, fulfillmentId: fulfillment.lastID, status: newStatus }, { status: 201 }));
       } catch (err: any) {
         await run("ROLLBACK").catch(() => {});
