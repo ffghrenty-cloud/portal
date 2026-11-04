@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password } = body;
 
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       db.get(
         "SELECT * FROM users WHERE email = ?",
         [email],
