@@ -5,7 +5,7 @@ import db from "@/lib/db";
 export async function GET() {
   const userId = (await cookies()).get("userId")?.value;
   if (!userId) return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
-  return new Promise((resolve) => db.get("SELECT role FROM users WHERE id = ?", [userId], (userErr, user: any) => {
+  return new Promise<NextResponse>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [userId], (userErr, user: any) => {
     if (userErr || !user || user.role === "client") return resolve(NextResponse.json({ error: "Нет доступа к рабочей очереди" }, { status: 403 }));
     db.all(
       `SELECT t.id, t.order_id, t.stage, t.status AS task_status, t.note, t.created_at, t.completed_at,
