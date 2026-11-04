@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function GET() {
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.all('SELECT * FROM products', (err, rows) => {
       if (err) {
         resolve(NextResponse.json({ error: err.message }, { status: 500 }));
