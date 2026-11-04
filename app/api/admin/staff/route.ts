@@ -40,10 +40,18 @@ export async function POST(request: Request) {
       function (err) {
         if (err) return resolve(NextResponse.json({ error: err.message.includes("UNIQUE") ? "Пользователь с таким email уже существует" : err.message }, { status: err.message.includes("UNIQUE") ? 409 : 500 }));
         const staffId = this.lastID;
-        if (role === "manager" || role === "senior_manager") {
-          db.all("SELECT id FROM orders WHERE status = 'pending' ORDER BY created_at ASC", (ordersError, orders: any[]) => {
+        const pendingStages: Record<string, Array<{ status: string; stage: string }>> = {
+          manager: [{ status: "pending", stage: "manager_review" }],
+          senior_manager: [{ status: "pending", stage: "manager_review" }],
+          warehouse: [{ status: "confirmed", stage: "warehouse" }, { status: "warehouse", stage: "picking" }],
+          quality: [{ status: "picking", stage: "quality_check" }],
+          packer: [{ status: "quality_check", stage: "packing" }],
+          logistics: [{ status: "packing", stage: "shipping" }, { status: "shipped", stage: "delivery" }],
+        };
+        for (const pending of pendingStages[role] || []) {
+          db.all("SELECT id FROM orders WHERE status = ? ORDER BY created_at ASC", [pending.status], (ordersError, orders: any[]) => {
             if (!ordersError && orders) {
-              for (const order of orders) void assignStageAutomatically(order.id, "manager_review", staffId);
+              for (const order of orders) void assignStageAutomatically(order.id, pending.stage, staffId);
             }
           });
         }
