@@ -82,7 +82,7 @@ export async function PATCH(request: Request) {
                 const value: any = byId.get(row.id);
                 return `${row.id}: ${Number(value.availableQuantity)} из ${row.quantity}`;
               }).join("; ");
-              db.run("UPDATE orders SET stock_checked_by = ?, stock_checked_at = CURRENT_TIMESTAMP WHERE id = ?", [actor.id, orderId], (orderErr) => {
+              db.run("UPDATE orders SET status = 'stock_checked', stock_checked_by = ?, stock_checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [actor.id, orderId], (orderErr) => {
                 if (orderErr) return resolve(NextResponse.json({ error: orderErr.message }, { status: 500 }));
                 db.run("UPDATE order_stage_tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?", [task.id], (taskUpdateErr) => {
                   if (taskUpdateErr) return resolve(NextResponse.json({ error: taskUpdateErr.message }, { status: 500 }));
