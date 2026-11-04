@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (err || !task) return resolve(NextResponse.json({ error: "Задание не найдено" }, { status: 404 }));
       if (task.assigned_user_id !== Number(userId) && task.actor_role !== "admin") return resolve(NextResponse.json({ error: "Это задание назначено другому сотруднику" }, { status: 403 }));
       const rule = STAGE_RULES[task.stage];
-      if (!rule || (task.actor_role !== "admin" && task.actor_role !== rule.role)) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
+      if (!rule || (task.actor_role !== "admin" && task.actor_role !== rule.role && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
 
       db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
