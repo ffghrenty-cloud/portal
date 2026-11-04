@@ -11,7 +11,7 @@ const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string
   quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
   packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },
   shipment_preparation: { role: "shipment_preparer", orderStatus: "ready", title: "Заказ загружен и готов к отправке", allowedFrom: ["packing"] },
-  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["packing", "ready"] },
+  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["ready", "shipped"] },
   delivery: { role: "logistics", orderStatus: "delivered", title: "Заказ доставлен", allowedFrom: ["shipped"] },
 };
 
@@ -37,6 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
         if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
+        if (task.stage === "shipping" && order.status === "partially_shipped") return resolve(NextResponse.json({ error: "Сначала оформите отгрузку всех оставшихся позиций заказа" }, { status: 409 }));
         if (!rule.allowedFrom.includes(order.status)) {
           return resolve(NextResponse.json({ error: "Этот этап пока нельзя выполнить: сначала должен завершиться предыдущий этап заказа" }, { status: 409 }));
         }
