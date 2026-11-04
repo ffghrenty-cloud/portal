@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ user: null });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get(
       "SELECT id, email, role, company FROM users WHERE id = ?",
       [userId],
