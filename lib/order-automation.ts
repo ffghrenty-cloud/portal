@@ -43,9 +43,11 @@ export function assignStageAutomatically(
               config.role,
               (staffError, staff: any) => {
                 if (staffError || !staff) {
+                  const message = `Этап «${config.label}» ожидает назначения сотрудника.`;
                   db.run(
                     "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                    [orderId, order.status, "Ожидает назначения сотрудника", `Этап «${config.label}»: пока нет сотрудника с нужной ролью`, assignedByUserId]
+                    [orderId, order.status, "Ожидает назначения сотрудника", message, assignedByUserId],
+                    () => { void notifyOrderCustomer(orderId, "Ожидает назначения", message); }
                   );
                   return resolve();
                 }
@@ -97,13 +99,12 @@ export async function advanceOrderWorkflow(
   const current = ORDER_STAGES[completedStage];
   if (!current) return;
 
-  await notifyOrderCustomer(
-    orderId,
-    "Обновление заказа",
-    `Этап «${current.label}» завершён.`
-  );
-
   if (nextStage) {
+    await notifyOrderCustomer(
+      orderId,
+      "Обновление заказа",
+      `Этап «${current.label}» завершён. Следующий этап: «${ORDER_STAGES[nextStage].label}».`
+    );
     await assignStageAutomatically(orderId, nextStage, actorUserId);
   } else {
     await notifyOrderCustomer(orderId, "Заказ доставлен", "Заказ отмечен как доставленный. Спасибо за покупку!");
