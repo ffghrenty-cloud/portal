@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ orders: [] });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT id, status, total, contact_name, contact_phone, manager,
               created_at, updated_at
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       0
     );
 
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       db.run(
         `INSERT INTO orders
          (user_id, status, total, contact_name, contact_phone, address, comment)
