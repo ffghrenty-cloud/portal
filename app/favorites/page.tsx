@@ -5,6 +5,7 @@ import { ArrowRight, Heart, Trash2 } from "lucide-react";
 import { useFavorites } from "@/lib/useFavorites";
 import { useCart } from "@/lib/useCart";
 import { useState } from "react";
+import { Product } from "@/lib/Product";
 
 export default function FavoritesPage() {
   const { favorites, removeFavorite, clearFavorites } = useFavorites();
@@ -17,7 +18,15 @@ export default function FavoritesPage() {
   }
 
   function handleAddToCart(item: (typeof favorites)[number]) {
-    add(item);
+    add(new Product({
+      id: item.id,
+      name: item.name,
+      sku: item.sku || "",
+      category: item.category,
+      price: item.price,
+      description: item.description || "",
+      image_url: item.imageUrl || null,
+    }));
     showNotice(`«${item.name}» добавлен в заявку`);
   }
 
