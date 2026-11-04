@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, FileText, Package, Users, MessageCircle, UserCog, ClipboardList, Star, ChartNoAxesCombined } from "lucide-react";
+import { BarChart3, FileText, Package, Users, MessageCircle, UserCog, ClipboardList, Star } from "lucide-react";
 
 const MENU = [
   { href: "/admin", label: "Дашборд", icon: BarChart3 },
   { href: "/admin/orders", label: "Заказы", icon: FileText },
   { href: "/admin/products", label: "Товары", icon: Package },
-  { href: "/admin/users", label: "Клиенты и скидки", icon: Users },\n  { href: "/admin/analytics", label: "Аналитика продаж", icon: ChartNoAxesCombined },\n  { href: "/admin/reviews", label: "Отзывы", icon: Star },
+  { href: "/admin/users", label: "Клиенты и скидки", icon: Users },\n  { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3 },\n  { href: "/admin/reviews", label: "Отзывы", icon: Star },
   { href: "/admin/staff", label: "Сотрудники", icon: UserCog },
   { href: "/staff/tasks", label: "Рабочие задания", icon: ClipboardList },
   { href: "/admin/messages", label: "Сообщения", icon: MessageCircle },
