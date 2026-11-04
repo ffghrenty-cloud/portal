@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const nextStatus = body.status;
   if (!["in_progress", "completed"].includes(nextStatus)) return NextResponse.json({ error: "Допустимые действия: in_progress или completed" }, { status: 400 });
 
-  return new Promise((resolve) => db.get(
+  return new Promise<NextResponse>((resolve) => db.get(
     "SELECT t.*, u.role AS actor_role FROM order_stage_tasks t JOIN users u ON u.id = ? WHERE t.id = ?",
     [userId, id],
     (err, task: any) => {
