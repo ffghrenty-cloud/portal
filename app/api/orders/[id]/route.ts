@@ -35,7 +35,21 @@ export async function GET(
                 NextResponse.json({ error: err2.message }, { status: 500 })
               );
             }
-            resolve(NextResponse.json({ order, items }));
+            db.all(
+              `SELECT e.id, e.status, e.title, e.description, e.created_at,
+                      u.email AS actor_email
+               FROM order_events e
+               LEFT JOIN users u ON u.id = e.actor_user_id
+               WHERE e.order_id = ?
+               ORDER BY e.created_at ASC, e.id ASC`,
+              [id],
+              (err3, events) => {
+                if (err3) {
+                  return resolve(NextResponse.json({ error: err3.message }, { status: 500 }));
+                }
+                resolve(NextResponse.json({ order, items, events }));
+              }
+            );
           }
         );
       }
