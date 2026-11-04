@@ -8,13 +8,17 @@ import AdminLayout from "@/app/components/AdminLayout";
 
 type Staff = { id: number; email: string; role: string };
 type Task = { id: number; stage: string; status: string; note: string | null; assigned_email: string | null; assigned_by_email: string | null; created_at: string };
-type TrackingOrder = { tracking_carrier: string | null; tracking_number: string | null; estimated_delivery: string | null; status: string };\ntype OrderLine = { id: number; product_name: string; quantity: number; available_quantity: number | null; shipped_quantity: number };\ntype Fulfillment = { id: number; status: string; carrier: string | null; trackingNumber: string | null; note: string | null; createdAt: string; items: Array<{ name: string; quantity: number }> };
-const STAGES = [\n  { value: "stock_check", label: "Проверка наличия на складе", role: "order_receiver" },
+type TrackingOrder = { tracking_carrier: string | null; tracking_number: string | null; estimated_delivery: string | null; status: string };
+type OrderLine = { id: number; product_name: string; quantity: number; available_quantity: number | null; shipped_quantity: number };
+type Fulfillment = { id: number; status: string; carrier: string | null; trackingNumber: string | null; note: string | null; createdAt: string; items: Array<{ name: string; quantity: number }> };
+const STAGES = [
+  { value: "stock_check", label: "Проверка наличия на складе", role: "order_receiver" },
   { value: "manager_review", label: "Проверка менеджером", role: "manager" },
   { value: "warehouse", label: "Приёмка на складе", role: "warehouse" },
   { value: "picking", label: "Комплектация", role: "warehouse" },
   { value: "quality_check", label: "Контроль качества", role: "quality" },
   { value: "packing", label: "Упаковка", role: "packer" },
+  { value: "shipment_preparation", label: "Подготовка и загрузка отправки", role: "shipment_preparer" },
   { value: "shipping", label: "Отгрузка и логистика", role: "logistics" },
   { value: "delivery", label: "Доставка клиенту", role: "logistics" },
 ];
@@ -35,7 +39,14 @@ export default function OrderWorkflowPage() {
   const [carrier, setCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [estimatedDelivery, setEstimatedDelivery] = useState("");
-  const [savingTracking, setSavingTracking] = useState(false);\n  const [items, setItems] = useState<OrderLine[]>([]);\n  const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);\n  const [shipQuantities, setShipQuantities] = useState<Record<number, number>>({});\n  const [shipmentCarrier, setShipmentCarrier] = useState("");\n  const [shipmentTracking, setShipmentTracking] = useState("");\n  const [shipmentNote, setShipmentNote] = useState("");\n  const [shippingBusy, setShippingBusy] = useState(false);
+  const [savingTracking, setSavingTracking] = useState(false);
+  const [items, setItems] = useState<OrderLine[]>([]);
+  const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);
+  const [shipQuantities, setShipQuantities] = useState<Record<number, number>>({});
+  const [shipmentCarrier, setShipmentCarrier] = useState("");
+  const [shipmentTracking, setShipmentTracking] = useState("");
+  const [shipmentNote, setShipmentNote] = useState("");
+  const [shippingBusy, setShippingBusy] = useState(false);
 
   const selectedStage = STAGES.find((item) => item.value === stage)!;
   const eligible = staff.filter((person) => selectedStage.value === "manager_review"
@@ -43,10 +54,11 @@ export default function OrderWorkflowPage() {
     : person.role === selectedStage.role);
 
   async function load() {
-    const [staffRes, taskRes, orderRes] = await Promise.all([
+    const [staffRes, taskRes, orderRes, fulfillmentRes] = await Promise.all([
       fetch("/api/admin/staff", { cache: "no-store" }),
       fetch(`/api/admin/orders/${id}/tasks`, { cache: "no-store" }),
       fetch(`/api/admin/orders/${id}`, { cache: "no-store" }),
+      fetch(`/api/admin/orders/${id}/fulfillments`, { cache: "no-store" }),
     ]);
     const [staffData, taskData, orderData, fulfillmentData] = await Promise.all([staffRes.json(), taskRes.json(), orderRes.json(), fulfillmentRes.json()]);
     if (staffRes.ok) setStaff(staffData.staff || []);
@@ -57,7 +69,10 @@ export default function OrderWorkflowPage() {
       setCarrier(current.tracking_carrier || "");
       setTrackingNumber(current.tracking_number || "");
       setEstimatedDelivery(current.estimated_delivery || "");
+      setItems(orderData.items || []);
+      setShipQuantities(Object.fromEntries((orderData.items || []).map((item: OrderLine) => [item.id, Math.max(0, Math.min(item.quantity - item.shipped_quantity, (item.available_quantity ?? 0) - item.shipped_quantity))])));
     }
+    if (fulfillmentRes.ok) setFulfillments(fulfillmentData.fulfillments || []);
     if (!staffRes.ok || !taskRes.ok || !orderRes.ok || !fulfillmentRes.ok) setMessage(staffData.error || taskData.error || orderData.error || "Не удалось загрузить данные");
   }
 
