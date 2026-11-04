@@ -22,7 +22,7 @@ export async function GET() {
   return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT
-         o.id, o.status, o.total, o.contact_name, o.contact_phone,
+         o.id, o.user_id, o.status, o.total, o.contact_name, o.contact_phone,
          o.address, o.manager, o.created_at,
          u.email as user_email,
          u.company as user_company
