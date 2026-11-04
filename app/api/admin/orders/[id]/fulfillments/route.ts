@@ -53,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const order = await get("SELECT id, user_id, status FROM orders WHERE id = ?", [id]);
         if (!order) throw new Error("Заказ не найден");
         if (["cancelled", "delivered"].includes(order.status)) throw new Error("Нельзя отгружать отменённый или доставленный заказ");
+        if (!["ready", "partially_shipped", "shipped"].includes(order.status)) throw new Error("Отгрузка доступна после того, как сотрудник подготовки отметит заказ загруженным и готовым к отправке");
         const requested = new Map<number, number>();
         for (const item of items) {
           const itemId = Number(item.orderItemId), qty = Number(item.quantity);
