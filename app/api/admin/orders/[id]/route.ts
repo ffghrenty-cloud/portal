@@ -29,6 +29,26 @@ const ALLOWED_STATUSES = [
   "cancelled",
 ];
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+  }
+  const { id } = await params;
+  return new Promise((resolve) => db.get(
+    "SELECT id, status, tracking_carrier, tracking_number, estimated_delivery FROM orders WHERE id = ?",
+    [id],
+    (err, order) => resolve(err
+      ? NextResponse.json({ error: err.message }, { status: 500 })
+      : order
+        ? NextResponse.json({ order })
+        : NextResponse.json({ error: "Заказ не найден" }, { status: 404 })
+    )
+  ));
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -41,7 +61,7 @@ export async function PATCH(
   const cookieStore = await cookies();
   const actorId = cookieStore.get("userId")?.value ?? null;
   const body = await request.json();
-  const { status, manager } = body;
+  const { status, manager, trackingCarrier, trackingNumber, estimatedDelivery } = body;
 
   if (status && !ALLOWED_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Недопустимый статус" }, { status: 400 });
@@ -59,6 +79,19 @@ export async function PATCH(
       updates.push("manager = ?");
       values.push(manager);
     }
+    if (trackingCarrier !== undefined) {
+      updates.push("tracking_carrier = ?");
+      values.push(String(trackingCarrier).trim().slice(0, 100) || null);
+    }
+    if (trackingNumber !== undefined) {
+      updates.push("tracking_number = ?");
+      values.push(String(trackingNumber).trim().slice(0, 120) || null);
+    }
+    if (estimatedDelivery !== undefined) {
+      updates.push("estimated_delivery = ?");
+      values.push(String(estimatedDelivery).trim().slice(0, 30) || null);
+    }
+    const trackingChanged = trackingCarrier !== undefined || trackingNumber !== undefined || estimatedDelivery !== undefined;
     updates.push("updated_at = CURRENT_TIMESTAMP");
     values.push(id);
 
@@ -94,6 +127,15 @@ export async function PATCH(
                 resolve(NextResponse.json({ ok: true, changes: 1 }));
               }
             }
+          );
+        } else if (trackingChanged && this.changes > 0) {
+          db.run(
+            "INSERT INTO order_events (order_id, status, title, description, actor_user_id) SELECT id, status, 'Данные доставки обновлены', 'Добавлены или изменены сведения для отслеживания отправления', ? FROM orders WHERE id = ?",
+            [actorId, id],
+            (eventError) => resolve(eventError
+              ? NextResponse.json({ error: eventError.message }, { status: 500 })
+              : NextResponse.json({ ok: true, changes: this.changes })
+            )
           );
         } else {
           resolve(NextResponse.json({ ok: true, changes: this.changes }));
