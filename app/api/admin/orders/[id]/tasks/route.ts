@@ -38,19 +38,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return new Promise<NextResponse>((resolve) => db.get("SELECT id FROM orders WHERE id = ?", [id], (orderErr, order) => {
       if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
       db.get("SELECT id, email, role FROM users WHERE id = ?", [assignedUserId], (userErr, user: any) => {
-        if (userErr || !user || user.role !== requiredRole) return resolve(NextResponse.json({ error: "Выбранный сотрудник не подходит для этого этапа" }, { status: 400 }));
-        db.run(
-          "INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, assigned_by_user_id, status, note) VALUES (?, ?, ?, ?, 'pending', ?)",
-          [id, stage, assignedUserId, actor.id, note],
-          function (taskErr) {
-            if (taskErr) return resolve(NextResponse.json({ error: taskErr.message }, { status: 500 }));
-            const taskId = this.lastID;
-            const labels: Record<string, string> = { manager_review: "Назначен менеджер", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
-            db.run(
-              "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, (SELECT status FROM orders WHERE id = ?), ?, ?, ?)",
-              [id, id, labels[stage], "Ответственный: " + user.email, actor.id],
-              (eventErr) => resolve(eventErr ? NextResponse.json({ error: eventErr.message }, { status: 500 }) : NextResponse.json({ ok: true, taskId }, { status: 201 }))
-            );
+        if (userErr || !user || (stage === "manager_review" ? !["manager", "senior_manager"].includes(user.role) : user.role !== requiredRole)) return resolve(NextResponse.json({ error: "Выбранный сотрудник не подходит для этого этапа" }, { status: 400 }));
+        db.get(
+          "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = ? AND status != 'completed' AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1",
+          [id, stage],
+          (existingErr, existing: any) => {
+            if (existingErr) return resolve(NextResponse.json({ error: existingErr.message }, { status: 500 }));
+            const saveTask = (taskId: number, statusCode: number) => {
+              const labels: Record<string, string> = { manager_review: "Назначен менеджер", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
+              db.run(
+                "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, (SELECT status FROM orders WHERE id = ?), ?, ?, ?)",
+                [id, id, existing ? "Ответственный переназначен" : labels[stage], "Ответственный: " + user.email, actor.id],
+                (eventErr) => resolve(eventErr ? NextResponse.json({ error: eventErr.message }, { status: 500 }) : NextResponse.json({ ok: true, taskId }, { status: statusCode }))
+              );
+            };
+            if (existing) {
+              db.run(
+                "UPDATE order_stage_tasks SET assigned_user_id = ?, assigned_by_user_id = ?, status = 'pending', note = ?, completed_at = NULL WHERE id = ?",
+                [assignedUserId, actor.id, note, existing.id],
+                (updateErr) => updateErr
+                  ? resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }))
+                  : saveTask(existing.id, 200)
+              );
+            } else {
+              db.run(
+                "INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, assigned_by_user_id, status, note) VALUES (?, ?, ?, ?, 'pending', ?)",
+                [id, stage, assignedUserId, actor.id, note],
+                function (taskErr) {
+                  if (taskErr) return resolve(NextResponse.json({ error: taskErr.message }, { status: 500 }));
+                  saveTask(this.lastID, 201);
+                }
+              );
+            }
           }
         );
       });
