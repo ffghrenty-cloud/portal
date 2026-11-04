@@ -32,7 +32,7 @@ type OrderEvent = {
 
 type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };
 
-type OrderNotification = {
+type CustomerShipment = { id: number; carrier: string | null; trackingNumber: string | null; createdAt: string; shippedAt: string | null; items: Array<{ name: string; quantity: number }> };\n\ntype OrderNotification = {
   id: number;
   title: string;
   message: string;
@@ -58,7 +58,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   picking: { label: "Комплектуется", className: "pending" },
   quality_check: { label: "Проверка качества", className: "pending" },
   packing: { label: "Упаковка", className: "pending" },
-  shipped: { label: "Отгружен", className: "shipped" },
+  partially_shipped: { label: "Отгружена часть заказа", className: "pending" },\n  shipped: { label: "Отгружен", className: "shipped" },
   delivered: { label: "Доставлен", className: "shipped" },
   cancelled: { label: "Отменён", className: "draft" },
 };
@@ -70,7 +70,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
-  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);\n  const [fulfillments, setFulfillments] = useState<CustomerShipment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -93,7 +93,7 @@ export default function OrderDetailPage() {
           setOrder(data.order);
           setItems(data.items || []);
           setEvents(data.events || []);
-          setNotifications(data.notifications || []);
+          setNotifications(data.notifications || []);\n          setFulfillments(data.fulfillments || []);
           setReview(reviewData.review || null);
         }
         setLoading(false);
@@ -202,6 +202,17 @@ export default function OrderDetailPage() {
           <div className="profile-info-row"><span className="profile-info-label">Ожидаемая доставка</span><span className="profile-info-value">{order.estimated_delivery ? new Date(order.estimated_delivery + "T00:00:00").toLocaleDateString("ru-RU") : "Дата уточняется"}</span></div>
           <small style={{ color: "#8b837a" }}>Статус и история обновляются автоматически каждые 15 секунд.</small>
         </section>
+
+        {fulfillments.length > 0 && (
+          <section style={{ margin: "18px 0", padding: "22px 24px", background: "#fff", border: "1px solid #e8e1d8" }}>
+            <h2 className="order-detail-section" style={{ marginBottom: 14 }}>Отправления по заказу</h2>
+            {fulfillments.map(shipment => <div key={shipment.id} style={{ padding: "14px 0", borderTop: "1px solid #eee" }}>
+              <strong>Отправление №{shipment.id}</strong> · {new Date(shipment.createdAt).toLocaleString("ru-RU")}
+              <p style={{ margin: "5px 0" }}>{shipment.carrier || "Перевозчик не указан"} · {shipment.trackingNumber || "Номер не указан"}</p>
+              {shipment.items.map((item, index) => <div key={index}>{item.name}: {item.quantity} шт.</div>)}
+            </div>)}
+          </section>
+        )}
 
         {notifications.length > 0 && (
           <section style={{ margin: "18px 0", padding: "20px 24px", background: "#f7f5f1", border: "1px solid #e8e1d8" }}>
