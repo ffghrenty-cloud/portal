@@ -87,8 +87,8 @@ export default function FavoritesPage() {
                 <div className="cart-item" key={item.id}>
                   {/* Картинка */}
                   <div className="cart-item-image">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} />
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} />
                     ) : (
                       <span className="cart-item-noimg">Нет фото</span>
                     )}
