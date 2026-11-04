@@ -14,7 +14,7 @@ export async function GET(
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get(
       `SELECT * FROM orders WHERE id = ? AND user_id = ?`,
       [id, userId],
