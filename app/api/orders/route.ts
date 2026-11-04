@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
+import { assignStageAutomatically, notifyOrderCustomer } from "@/lib/order-automation";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -10,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ orders: [] });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT id, status, total, contact_name, contact_phone, manager,
               created_at, updated_at
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
       0
     );
 
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       db.run(
         `INSERT INTO orders
          (user_id, status, total, contact_name, contact_phone, address, comment)
@@ -96,6 +97,12 @@ export async function POST(request: Request) {
                 completed++;
                 if (completed === totalItems && !hasError) {
                   stmt.finalize();
+                  void assignStageAutomatically(orderId, "manager_review");
+                  void notifyOrderCustomer(
+                    orderId,
+                    "Заказ принят",
+                    "Заказ зарегистрирован. Менеджер автоматически получил задачу на проверку."
+                  );
                   resolve(NextResponse.json({ ok: true, orderId }));
                 }
               }

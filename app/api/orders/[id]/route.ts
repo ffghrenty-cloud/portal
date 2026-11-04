@@ -14,7 +14,7 @@ export async function GET(
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get(
       `SELECT * FROM orders WHERE id = ? AND user_id = ?`,
       [id, userId],
@@ -47,7 +47,16 @@ export async function GET(
                 if (err3) {
                   return resolve(NextResponse.json({ error: err3.message }, { status: 500 }));
                 }
-                resolve(NextResponse.json({ order, items, events }));
+                db.all(
+                  "SELECT id, title, message, is_read, created_at FROM order_notifications WHERE order_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC",
+                  [id, userId],
+                  (notificationError, notifications) => {
+                    if (notificationError) {
+                      return resolve(NextResponse.json({ error: notificationError.message }, { status: 500 }));
+                    }
+                    resolve(NextResponse.json({ order, items, events, notifications }));
+                  }
+                );
               }
             );
           }

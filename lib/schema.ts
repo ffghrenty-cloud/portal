@@ -37,6 +37,20 @@ export function initDatabase(): Promise<void> {
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
 
+      CREATE TABLE IF NOT EXISTS order_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_order_notifications_user ON order_notifications(user_id, is_read, created_at);
+
       CREATE TABLE IF NOT EXISTS order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
@@ -90,8 +104,26 @@ export function initDatabase(): Promise<void> {
     `, (err) => {
       if (err) reject(err);
       else {
-        console.log('✅ Таблицы созданы');
-        resolve();
+        const migrations = [
+          "ALTER TABLE orders ADD COLUMN tracking_carrier TEXT",
+          "ALTER TABLE orders ADD COLUMN tracking_number TEXT",
+          "ALTER TABLE orders ADD COLUMN estimated_delivery TEXT"
+        ];
+        const runMigration = (index: number) => {
+          if (index >= migrations.length) {
+            console.log('✅ Таблицы и миграции созданы');
+            resolve();
+            return;
+          }
+          db.run(migrations[index], (migrationError) => {
+            if (migrationError && !migrationError.message.includes("duplicate column name")) {
+              reject(migrationError);
+              return;
+            }
+            runMigration(index + 1);
+          });
+        };
+        runMigration(0);
       }
     });
   });

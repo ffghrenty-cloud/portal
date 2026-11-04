@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ messages: [] });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT id, text, is_from_admin, created_at
        FROM admin_messages
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Пустое сообщение" }, { status: 400 });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.run(
       `INSERT INTO admin_messages (user_id, text, is_from_admin)
        VALUES (?, ?, 0)`,

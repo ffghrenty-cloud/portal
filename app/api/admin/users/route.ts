@@ -7,7 +7,7 @@ async function isAdmin(): Promise<boolean> {
   const userId = cookieStore.get("userId")?.value;
   if (!userId) return false;
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
       resolve(!err && row && row.role === "admin");
     });
@@ -19,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT
          u.id, u.email, u.company, u.role, u.created_at,
