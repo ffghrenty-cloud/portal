@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
 
-const STAGE_RULES: Record<string, { role: string; orderStatus: string; title: string }> = {
-  manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером" },
-  warehouse: { role: "warehouse", orderStatus: "warehouse", title: "Заказ принят складом" },
-  picking: { role: "warehouse", orderStatus: "picking", title: "Комплектация заказа завершена" },
-  quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден" },
-  packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован" },
-  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку" },
+const STAGE_RULES: Record<string, { role: string; orderStatus: string; title: string; allowedFrom: string[] }> = {
+  manager_review: { role: "manager", orderStatus: "confirmed", title: "Заказ согласован менеджером", allowedFrom: ["pending"] },
+  warehouse: { role: "warehouse", orderStatus: "warehouse", title: "Заказ принят складом", allowedFrom: ["confirmed", "production"] },
+  picking: { role: "warehouse", orderStatus: "picking", title: "Комплектация заказа завершена", allowedFrom: ["warehouse"] },
+  quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
+  packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },
+  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["packing", "ready"] },
+  delivery: { role: "logistics", orderStatus: "delivered", title: "Заказ доставлен", allowedFrom: ["shipped"] },
 };
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,23 +30,30 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const rule = STAGE_RULES[task.stage];
       if (!rule || (task.actor_role !== "admin" && task.actor_role !== rule.role)) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
-      const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : task.note;
-      db.run(
-        "UPDATE order_stage_tasks SET status = ?, note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?",
-        [nextStatus, note, nextStatus, id],
-        (updateErr) => {
-          if (updateErr) return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
-          if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
-          db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (orderErr) => {
-            if (orderErr) return resolve(NextResponse.json({ error: orderErr.message }, { status: 500 }));
-            db.run(
-              "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-              [task.order_id, rule.orderStatus, rule.title, note || "Этап выполнен ответственным сотрудником", userId],
-              (eventErr) => resolve(eventErr ? NextResponse.json({ error: eventErr.message }, { status: 500 }) : NextResponse.json({ ok: true }))
-            );
-          });
+
+      db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
+        if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
+        if (!rule.allowedFrom.includes(order.status)) {
+          return resolve(NextResponse.json({ error: "Этот этап пока нельзя выполнить: сначала должен завершиться предыдущий этап заказа" }, { status: 409 }));
         }
-      );
+        const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : task.note;
+        db.run(
+          "UPDATE order_stage_tasks SET status = ?, note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?",
+          [nextStatus, note, nextStatus, id],
+          (updateErr) => {
+            if (updateErr) return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
+            if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
+            db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (statusErr) => {
+              if (statusErr) return resolve(NextResponse.json({ error: statusErr.message }, { status: 500 }));
+              db.run(
+                "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
+                [task.order_id, rule.orderStatus, rule.title, note || "Этап выполнен ответственным сотрудником", userId],
+                (eventErr) => resolve(eventErr ? NextResponse.json({ error: eventErr.message }, { status: 500 }) : NextResponse.json({ ok: true }))
+              );
+            });
+          }
+        );
+      });
     }
   ));
 }
