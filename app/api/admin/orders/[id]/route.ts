@@ -17,6 +17,7 @@ async function isAdmin(): Promise<boolean> {
 const ALLOWED_STATUSES = [
   "draft",
   "pending",
+  "stock_checked",
   "confirmed",
   "production",
   "warehouse",
@@ -109,7 +110,8 @@ export async function PATCH(
         } else if (status && this.changes > 0) {
           const titles: Record<string, string> = {
             draft: "Черновик заказа",
-            pending: "Заказ ожидает менеджера",
+            pending: "Заказ ожидает проверки наличия",
+            stock_checked: "Наличие проверено складом",
             confirmed: "Заказ согласован",
             production: "Передан в производство",
             warehouse: "Передан на склад",
