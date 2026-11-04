@@ -7,7 +7,7 @@ export async function GET() {
   const userId = cookieStore.get("userId")?.value;
   if (!userId) return NextResponse.json({ count: 0 });
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get(
       "SELECT role FROM users WHERE id = ?",
       [userId],
