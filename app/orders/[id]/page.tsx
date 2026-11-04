@@ -30,7 +30,9 @@ type OrderEvent = {
   created_at: string;
 };
 
-type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };\n\ntype OrderNotification = {
+type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };
+
+type OrderNotification = {
   id: number;
   title: string;
   message: string;
@@ -68,7 +70,12 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
-  const [notifications, setNotifications] = useState<OrderNotification[]>([]);\n  const [review, setReview] = useState<Review | null>(null);\n  const [reviewRating, setReviewRating] = useState(5);\n  const [reviewComment, setReviewComment] = useState("");\n  const [reviewMessage, setReviewMessage] = useState("");\n  const [reviewBusy, setReviewBusy] = useState(false);
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [review, setReview] = useState<Review | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -86,7 +93,8 @@ export default function OrderDetailPage() {
             setOrder(data.order);
             setItems(data.items || []);
             setEvents(data.events || []);
-            setNotifications(data.notifications || []);\n            setReview(reviewData.review || null);
+            setNotifications(data.notifications || []);
+            setReview(reviewData.review || null);
           }
           setLoading(false);
         })
