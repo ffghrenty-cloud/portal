@@ -95,7 +95,7 @@ export default function AdminProductsPage() {
                 <div>{p.name}</div>
                 <div>{p.sku || "—"}</div>
                 <div>{p.category || "—"}</div>
-                <div>{p.price.toFixed(2).replace(".", ",")} BYN</div>
+                <div>{p.price.toFixed(2).replace(".", ",")} BYN<div className="admin-order-sub">На складе: {p.stock_quantity ?? 0} шт.</div></div>
                 <div className="admin-table-actions">
                   <button onClick={() => setEditing(p)} title="Редактировать">
                     <Pencil size={16} />
@@ -166,6 +166,12 @@ export default function AdminProductsPage() {
                     })
                   }
                 />
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label">Количество на складе, шт.</label>
+                <input type="number" min="0" step="1" className="auth-input" value={editing.stock_quantity ?? 0}
+                  onChange={(e) => setEditing({ ...editing, stock_quantity: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
               </div>
 
               <div className="auth-field">
