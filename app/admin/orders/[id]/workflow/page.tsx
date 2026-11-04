@@ -18,7 +18,7 @@ const STAGES = [
   { value: "shipping", label: "Отгрузка и логистика", role: "logistics" },
   { value: "delivery", label: "Доставка клиенту", role: "logistics" },
 ];
-const ROLE_NAMES: Record<string, string> = { manager: "Менеджер", warehouse: "Склад", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика" };
+const ROLE_NAMES: Record<string, string> = { shipment_preparer: "Подготовка отправки", manager: "Менеджер", warehouse: "Склад", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика" };
 const fieldStyle: React.CSSProperties = { display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #d8d0c6", borderRadius: 4, background: "#fff" };
 
 export default function OrderWorkflowPage() {
