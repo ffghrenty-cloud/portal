@@ -4,7 +4,7 @@ import db from "@/lib/db";
 
 const STAGES: Record<string, string> = {
   manager_review: "manager", warehouse: "warehouse", picking: "warehouse",
-  quality_check: "quality", packing: "packer", shipping: "logistics", delivery: "logistics",
+  quality_check: "quality", packing: "packer", shipping: "logistics", delivery: "logistics", shipment_preparation: "shipment_preparer",
 };
 async function currentUser() {
   const id = (await cookies()).get("userId")?.value;
@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           (existingErr, existing: any) => {
             if (existingErr) return resolve(NextResponse.json({ error: existingErr.message }, { status: 500 }));
             const saveTask = (taskId: number, statusCode: number) => {
-              const labels: Record<string, string> = { manager_review: "Назначен менеджер", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
+              const labels: Record<string, string> = { manager_review: "Назначен менеджер", shipment_preparation: "Назначен сотрудник подготовки отправки", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
               db.run(
                 "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, (SELECT status FROM orders WHERE id = ?), ?, ?, ?)",
                 [id, id, existing ? "Ответственный переназначен" : labels[stage], "Ответственный: " + user.email, actor.id],
