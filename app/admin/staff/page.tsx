@@ -6,7 +6,8 @@ import AdminLayout from "@/app/components/AdminLayout";
 
 type Staff = { id: number; email: string; company: string | null; role: string; created_at: string };
 const ROLES = [
-  { value: "manager", label: "Менеджер" }, { value: "senior_manager", label: "Старший менеджер" },\n  { value: "order_receiver", label: "Приёмщик заказов / проверка наличия" },
+  { value: "manager", label: "Менеджер" }, { value: "senior_manager", label: "Старший менеджер" },
+  { value: "order_receiver", label: "Приёмщик заказов / проверка наличия" },
   { value: "warehouse", label: "Склад / комплектовщик" }, { value: "quality", label: "Контроль качества" },
   { value: "packer", label: "Упаковка" }, { value: "shipment_preparer", label: "Подготовка и загрузка отправки" }, { value: "logistics", label: "Логистика" },
 ];
