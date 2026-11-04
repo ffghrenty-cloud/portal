@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
     (taskErr, task: any) => {
       if (taskErr || !task) return resolve(NextResponse.json({ error: "Заказ не назначен вам или уже проверен" }, { status: 404 }));
       db.all(
-        "SELECT oi.id, oi.quantity, p.stock_quantity FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?",
+        "SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?",
         [orderId],
         (itemsErr, actualItems: any[]) => {
           if (itemsErr || !actualItems?.length) return resolve(NextResponse.json({ error: "Не удалось загрузить состав заказа" }, { status: 500 }));
@@ -103,7 +103,13 @@ export async function PATCH(request: Request) {
             const value: any = byId.get(row.id);
             db.run("UPDATE order_items SET available_quantity = ?, warehouse_note = ? WHERE id = ?", [
               Number(value.availableQuantity), typeof value.note === "string" ? value.note.trim().slice(0, 300) : null, row.id
-            ], (err) => err ? resolve(NextResponse.json({ error: err.message }, { status: 500 })) : saveNext());
+            ], (err) => {
+              if (err) return resolve(NextResponse.json({ error: err.message }, { status: 500 }));
+              db.run("UPDATE products SET stock_quantity = ? WHERE id = ?", [Number(value.availableQuantity), row.product_id], (stockErr) => {
+                if (stockErr) return resolve(NextResponse.json({ error: stockErr.message }, { status: 500 }));
+                saveNext();
+              });
+            });
           };
           saveNext();
         }
