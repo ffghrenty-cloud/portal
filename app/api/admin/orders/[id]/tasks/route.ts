@@ -4,7 +4,7 @@ import db from "@/lib/db";
 
 const STAGES: Record<string, string> = {
   stock_check: "order_receiver",
-  manager_review: "manager", stock_check: "order_receiver", warehouse: "warehouse", picking: "warehouse",
+  manager_review: "manager", warehouse: "warehouse", picking: "warehouse",
   quality_check: "quality", packing: "packer", shipping: "logistics", delivery: "logistics", shipment_preparation: "shipment_preparer",
 };
 async function currentUser() {
