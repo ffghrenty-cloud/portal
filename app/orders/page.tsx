@@ -20,8 +20,13 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   pending: { label: "На согласовании", className: "pending" },
   confirmed: { label: "Подтверждён", className: "confirmed" },
   production: { label: "В производстве", className: "pending" },
+  warehouse: { label: "На складе", className: "pending" },
+  picking: { label: "Комплектуется", className: "pending" },
+  quality_check: { label: "Проверка качества", className: "pending" },
+  packing: { label: "Упаковка", className: "pending" },
   ready: { label: "Готов к отгрузке", className: "confirmed" },
   shipped: { label: "Отгружен", className: "shipped" },
+  delivered: { label: "Доставлен", className: "shipped" },
   cancelled: { label: "Отменён", className: "draft" },
 };
 
