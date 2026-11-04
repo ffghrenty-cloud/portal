@@ -18,6 +18,15 @@ type Order = {
   updated_at: string;
 };
 
+type OrderEvent = {
+  id: number;
+  status: string;
+  title: string;
+  description: string | null;
+  actor_email: string | null;
+  created_at: string;
+};
+
 type OrderItem = {
   id: number;
   product_id: number;
@@ -32,7 +41,12 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   confirmed: { label: "Подтверждён", className: "confirmed" },
   production: { label: "В производстве", className: "pending" },
   ready: { label: "Готов к отгрузке", className: "confirmed" },
+  warehouse: { label: "На складе", className: "pending" },
+  picking: { label: "Комплектуется", className: "pending" },
+  quality_check: { label: "Проверка качества", className: "pending" },
+  packing: { label: "Упаковка", className: "pending" },
   shipped: { label: "Отгружен", className: "shipped" },
+  delivered: { label: "Доставлен", className: "shipped" },
   cancelled: { label: "Отменён", className: "draft" },
 };
 
@@ -42,6 +56,7 @@ export default function OrderDetailPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [events, setEvents] = useState<OrderEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -55,6 +70,7 @@ export default function OrderDetailPage() {
         } else {
           setOrder(data.order);
           setItems(data.items || []);
+          setEvents(data.events || []);
         }
         setLoading(false);
       })
@@ -131,6 +147,29 @@ export default function OrderDetailPage() {
             Создан: {formatDate(order.created_at)}
           </div>
         </div>
+
+        <section style={{ margin: "26px 0 34px", padding: "24px", background: "#fff", border: "1px solid #e8e1d8" }}>
+          <h2 className="order-detail-section" style={{ marginBottom: 22 }}>История и этапы выполнения</h2>
+          {events.length === 0 ? (
+            <p style={{ color: "#777" }}>История этапов пока не заполнена.</p>
+          ) : (
+            <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {events.map((event, index) => (
+                <li key={event.id} style={{ display: "grid", gridTemplateColumns: "22px minmax(0, 1fr)", gap: 14, paddingBottom: index === events.length - 1 ? 0 : 22, position: "relative" }}>
+                  <span style={{ width: 12, height: 12, marginTop: 5, borderRadius: "50%", background: index === events.length - 1 ? "#52765c" : "#b6a995", display: "block", zIndex: 1 }} />
+                  <div>
+                    <strong>{event.title}</strong>
+                    {event.description && <p style={{ margin: "5px 0", color: "#716b64" }}>{event.description}</p>}
+                    <small style={{ color: "#8b837a" }}>
+                      {new Date(event.created_at).toLocaleString("ru-RU")}
+                      {event.actor_email ? ` · ${event.actor_email}` : ""}
+                    </small>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
 
         <div className="order-detail-layout">
           {/* Левая колонка — товары */}

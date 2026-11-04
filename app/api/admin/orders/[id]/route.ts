@@ -19,8 +19,13 @@ const ALLOWED_STATUSES = [
   "pending",
   "confirmed",
   "production",
+  "warehouse",
+  "picking",
+  "quality_check",
+  "packing",
   "ready",
   "shipped",
+  "delivered",
   "cancelled",
 ];
 
@@ -33,6 +38,8 @@ export async function PATCH(
   }
 
   const { id } = await params;
+  const cookieStore = await cookies();
+  const actorId = cookieStore.get("userId")?.value ?? null;
   const body = await request.json();
   const { status, manager } = body;
 
@@ -61,6 +68,33 @@ export async function PATCH(
       function (err) {
         if (err) {
           resolve(NextResponse.json({ error: err.message }, { status: 500 }));
+        } else if (status && this.changes > 0) {
+          const titles: Record<string, string> = {
+            draft: "Черновик заказа",
+            pending: "Заказ ожидает менеджера",
+            confirmed: "Заказ согласован",
+            production: "Передан в производство",
+            warehouse: "Передан на склад",
+            picking: "Заказ комплектуется",
+            quality_check: "Проверка комплектации",
+            packing: "Упаковка заказа",
+            ready: "Заказ готов к отгрузке",
+            shipped: "Заказ отгружен",
+            delivered: "Заказ доставлен",
+            cancelled: "Заказ отменён",
+          };
+          db.run(
+            `INSERT INTO order_events (order_id, status, title, description, actor_user_id)
+             VALUES (?, ?, ?, ?, ?)`,
+            [id, status, titles[status] || "Статус заказа изменён", "Этап обновлён сотрудником предприятия", actorId],
+            (eventError) => {
+              if (eventError) {
+                resolve(NextResponse.json({ error: eventError.message }, { status: 500 }));
+              } else {
+                resolve(NextResponse.json({ ok: true, changes: 1 }));
+              }
+            }
+          );
         } else {
           resolve(NextResponse.json({ ok: true, changes: this.changes }));
         }

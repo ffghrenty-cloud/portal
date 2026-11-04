@@ -67,6 +67,11 @@ export async function POST(request: Request) {
           }
 
           const orderId = this.lastID;
+          db.run(
+            `INSERT INTO order_events (order_id, status, title, description, actor_user_id)
+             VALUES (?, 'pending', 'Заказ оформлен', 'Заказ отправлен и ожидает проверки менеджером', ?)`,
+            [orderId, userId]
+          );
           const stmt = db.prepare(
             `INSERT INTO order_items
              (order_id, product_id, product_name, quantity, price)

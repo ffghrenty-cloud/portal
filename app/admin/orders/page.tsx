@@ -22,8 +22,13 @@ const STATUSES = [
   { value: "pending", label: "На согласовании" },
   { value: "confirmed", label: "Подтверждён" },
   { value: "production", label: "В производстве" },
+  { value: "warehouse", label: "На складе" },
+  { value: "picking", label: "Комплектуется" },
+  { value: "quality_check", label: "Проверка качества" },
+  { value: "packing", label: "Упаковка" },
   { value: "ready", label: "Готов к отгрузке" },
   { value: "shipped", label: "Отгружен" },
+  { value: "delivered", label: "Доставлен" },
   { value: "cancelled", label: "Отменён" },
 ];
 
