@@ -6,13 +6,13 @@ import AdminLayout from "@/app/components/AdminLayout";
 
 type Staff = { id: number; email: string; company: string | null; role: string; created_at: string };
 const ROLES = [
-  { value: "manager", label: "Менеджер" }, { value: "senior_manager", label: "Старший менеджер" },
+  { value: "manager", label: "Менеджер" }, { value: "senior_manager", label: "Старший менеджер" },\n  { value: "order_receiver", label: "Приёмщик заказов / проверка наличия" },
   { value: "warehouse", label: "Склад / комплектовщик" }, { value: "quality", label: "Контроль качества" },
-  { value: "packer", label: "Упаковка" }, { value: "logistics", label: "Логистика" },
+  { value: "packer", label: "Упаковка" }, { value: "shipment_preparer", label: "Подготовка и загрузка отправки" }, { value: "logistics", label: "Логистика" },
 ];
 const ROLE_LABELS: Record<string, string> = {
-  admin: "Администратор", manager: "Менеджер", senior_manager: "Старший менеджер",
-  warehouse: "Склад / комплектовщик", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика",
+  admin: "Администратор", manager: "Менеджер", senior_manager: "Старший менеджер", order_receiver: "Приёмщик заказов",
+  warehouse: "Склад / комплектовщик", quality: "Контроль качества", packer: "Упаковка", shipment_preparer: "Подготовка отправки", logistics: "Логистика",
 };
 const fieldStyle: React.CSSProperties = { display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #d8d0c6", borderRadius: 4, background: "#fff" };
 
