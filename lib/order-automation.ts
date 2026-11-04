@@ -7,11 +7,13 @@ type StageConfig = {
 };
 
 export const ORDER_STAGES: Record<string, StageConfig> = {
-  stock_check: { role: ["order_receiver"], label: "Проверка наличия на складе", next: "manager_review" },\n  manager_review: { role: ["manager", "senior_manager"], label: "Проверка менеджером", next: "warehouse" },
+  stock_check: { role: ["order_receiver"], label: "Проверка наличия на складе", next: "manager_review" },
+  manager_review: { role: ["manager", "senior_manager"], label: "Проверка менеджером", next: "warehouse" },
   warehouse: { role: ["warehouse"], label: "Приёмка на складе", next: "picking" },
   picking: { role: ["warehouse"], label: "Комплектация", next: "quality_check" },
   quality_check: { role: ["quality"], label: "Контроль качества", next: "packing" },
-  packing: { role: ["packer"], label: "Упаковка", next: "shipment_preparation" },\n  shipment_preparation: { role: ["shipment_preparer"], label: "Подготовка и загрузка отправки", next: "shipping" },
+  packing: { role: ["packer"], label: "Упаковка", next: "shipment_preparation" },
+  shipment_preparation: { role: ["shipment_preparer"], label: "Подготовка и загрузка отправки", next: "shipping" },
   shipping: { role: ["logistics"], label: "Передача в доставку", next: "delivery" },
   delivery: { role: ["logistics"], label: "Доставка клиенту" },
 };
