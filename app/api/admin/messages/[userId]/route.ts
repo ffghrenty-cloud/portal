@@ -7,7 +7,7 @@ async function isAdmin(): Promise<boolean> {
   const userId = cookieStore.get("userId")?.value;
   if (!userId) return false;
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
       resolve(!err && row && row.role === "admin");
     });
@@ -24,7 +24,7 @@ export async function DELETE(
 
   const { userId } = await params;
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.run(
       "DELETE FROM admin_messages WHERE user_id = ?",
       [userId],
