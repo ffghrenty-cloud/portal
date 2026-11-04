@@ -6,7 +6,7 @@ import AdminGuard from "@/app/components/AdminGuard";
 import AdminLayout from "@/app/components/AdminLayout";
 
 type Order = {
-  id: number; status: string; total: number; contact_name: string | null;
+  id: number; user_id: number; status: string; total: number; contact_name: string | null;
   contact_phone: string | null; address: string | null; manager: string | null;
   created_at: string; user_email: string; user_company: string | null;
 };
@@ -48,13 +48,15 @@ export default function AdminOrdersPage() {
           <div><div className="admin-order-label">Клиент</div><div>{order.user_company || order.user_email}</div></div>
           <div><div className="admin-order-label">Контакт</div><div>{order.contact_name || "—"}</div><div className="admin-order-sub">{order.contact_phone || ""}</div></div>
           <div><div className="admin-order-label">Адрес</div><div>{order.address || "—"}</div></div>
+          <div><div className="admin-order-label">Ответственный менеджер</div><div>{order.manager || "Не назначен"}</div></div>
         </div>
         <div className="admin-order-actions">
           <label className="admin-order-label">Статус:</label>
           <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value)} className="admin-status-select">
             {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          <Link href={`/admin/orders/${order.id}/workflow`} className="text-link">Назначить сотрудников →</Link>
+          <Link href={`/admin/orders/${order.id}/workflow`} className="text-link">Маршрут и отгрузка →</Link>
+          <Link href={`/admin/messages?userId=${order.user_id}`} className="text-link">Связаться с клиентом →</Link>
         </div>
       </div>)}</div>}
   </AdminLayout></AdminGuard>;
