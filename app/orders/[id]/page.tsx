@@ -30,7 +30,7 @@ type OrderEvent = {
   created_at: string;
 };
 
-type OrderNotification = {
+type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };\n\ntype OrderNotification = {
   id: number;
   title: string;
   message: string;
@@ -68,7 +68,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
-  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);\n  const [review, setReview] = useState<Review | null>(null);\n  const [reviewRating, setReviewRating] = useState(5);\n  const [reviewComment, setReviewComment] = useState("");\n  const [reviewMessage, setReviewMessage] = useState("");\n  const [reviewBusy, setReviewBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -86,7 +86,7 @@ export default function OrderDetailPage() {
             setOrder(data.order);
             setItems(data.items || []);
             setEvents(data.events || []);
-            setNotifications(data.notifications || []);
+            setNotifications(data.notifications || []);\n            setReview(reviewData.review || null);
           }
           setLoading(false);
         })
@@ -103,6 +103,18 @@ export default function OrderDetailPage() {
       window.clearInterval(refreshId);
     };
   }, [id]);
+
+  async function submitReview(e: React.FormEvent) {
+    e.preventDefault(); setReviewBusy(true); setReviewMessage("");
+    const response = await fetch(`/api/orders/${id}/review`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+    });
+    const data = await response.json(); setReviewBusy(false);
+    if (!response.ok) { setReviewMessage(data.error || "Не удалось отправить отзыв"); return; }
+    const loaded = await fetch(`/api/orders/${id}/review`, { cache: "no-store" }).then(r => r.json());
+    setReview(loaded.review || null); setReviewMessage("Спасибо! Отзыв сохранён.");
+  }
 
   function formatDate(iso: string): string {
     const d = new Date(iso);
@@ -162,6 +174,13 @@ export default function OrderDetailPage() {
           </Link>
         </div>
 
+        <section style={{ margin: "18px 0", padding: "18px 22px", background: "#fff", border: "1px solid #e8e1d8" }}>
+          <h2 className="order-detail-section" style={{ marginBottom: 12 }}>Расчёт заказа</h2>
+          <div className="profile-info-row"><span className="profile-info-label">Стоимость товаров</span><span className="profile-info-value">{formatPrice(order.subtotal || order.total)}</span></div>
+          {Number(order.discount_percent) > 0 && <div className="profile-info-row"><span className="profile-info-label">Персональная скидка ({order.discount_percent}%)</span><span className="profile-info-value">−{formatPrice(order.discount_amount || 0)}</span></div>}
+          <div className="profile-info-row"><strong>Итого</strong><strong>{formatPrice(order.total)}</strong></div>
+        </section>
+
         {/* Статус + дата */}
         <div className="order-detail-top">
           <div className={`profile-status ${statusInfo.className}`}>
@@ -192,6 +211,24 @@ export default function OrderDetailPage() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {order.status === "delivered" && (
+          <section style={{ margin: "18px 0", padding: "22px 24px", background: "#fff", border: "1px solid #e8e1d8" }}>
+            <h2 className="order-detail-section" style={{ marginBottom: 14 }}>Отзыв о заказе</h2>
+            {review ? <div>
+              <div style={{ fontSize: 22, letterSpacing: 3 }}>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</div>
+              <p>{review.comment || "Покупатель не добавил комментарий."}</p>
+              {review.admin_reply && <div style={{ padding: 14, background: "#f7f5f1" }}><strong>Ответ компании</strong><p>{review.admin_reply}</p></div>}
+            </div> : <form onSubmit={submitReview} style={{ display: "grid", gap: 12, maxWidth: 600 }}>
+              <label>Оценка<select value={reviewRating} onChange={e => setReviewRating(Number(e.target.value))} style={{ display: "block", padding: 10, marginTop: 5 }}>
+                {[5,4,3,2,1].map(value => <option key={value} value={value}>{"★".repeat(value)} ({value}/5)</option>)}
+              </select></label>
+              <label>Комментарий<textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} maxLength={2000} rows={4} style={{ display: "block", width: "100%", padding: 10, marginTop: 5 }} placeholder="Расскажите о качестве товара и обслуживании" /></label>
+              <button className="button dark" disabled={reviewBusy}>{reviewBusy ? "Отправка..." : "Оставить отзыв"}</button>
+              {reviewMessage && <p role="status">{reviewMessage}</p>}
+            </form>}
           </section>
         )}
 
