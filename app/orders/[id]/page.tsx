@@ -19,6 +19,9 @@ type Order = {
   tracking_carrier: string | null;
   tracking_number: string | null;
   estimated_delivery: string | null;
+  subtotal: number;
+  discount_percent: number;
+  discount_amount: number;
 };
 
 type OrderEvent = {
@@ -32,7 +35,9 @@ type OrderEvent = {
 
 type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };
 
-type CustomerShipment = { id: number; carrier: string | null; trackingNumber: string | null; createdAt: string; shippedAt: string | null; items: Array<{ name: string; quantity: number }> };\n\ntype OrderNotification = {
+type CustomerShipment = { id: number; carrier: string | null; trackingNumber: string | null; createdAt: string; shippedAt: string | null; items: Array<{ name: string; quantity: number }> };
+
+type OrderNotification = {
   id: number;
   title: string;
   message: string;
@@ -58,7 +63,8 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   picking: { label: "Комплектуется", className: "pending" },
   quality_check: { label: "Проверка качества", className: "pending" },
   packing: { label: "Упаковка", className: "pending" },
-  partially_shipped: { label: "Отгружена часть заказа", className: "pending" },\n  shipped: { label: "Отгружен", className: "shipped" },
+  partially_shipped: { label: "Отгружена часть заказа", className: "pending" },
+  shipped: { label: "Отгружен", className: "shipped" },
   delivered: { label: "Доставлен", className: "shipped" },
   cancelled: { label: "Отменён", className: "draft" },
 };
@@ -70,7 +76,8 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
-  const [notifications, setNotifications] = useState<OrderNotification[]>([]);\n  const [fulfillments, setFulfillments] = useState<CustomerShipment[]>([]);
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [fulfillments, setFulfillments] = useState<CustomerShipment[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -93,7 +100,8 @@ export default function OrderDetailPage() {
           setOrder(data.order);
           setItems(data.items || []);
           setEvents(data.events || []);
-          setNotifications(data.notifications || []);\n          setFulfillments(data.fulfillments || []);
+          setNotifications(data.notifications || []);
+          setFulfillments(data.fulfillments || []);
           setReview(reviewData.review || null);
         }
         setLoading(false);
