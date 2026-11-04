@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       db.run(
         "INSERT INTO users (email, password, company, role) VALUES (?, ?, ?, ?)",
         [email, hash, company || null, "client"],
