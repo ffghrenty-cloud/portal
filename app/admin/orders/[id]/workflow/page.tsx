@@ -9,7 +9,7 @@ import AdminLayout from "@/app/components/AdminLayout";
 type Staff = { id: number; email: string; role: string };
 type Task = { id: number; stage: string; status: string; note: string | null; assigned_email: string | null; assigned_by_email: string | null; created_at: string };
 type TrackingOrder = { tracking_carrier: string | null; tracking_number: string | null; estimated_delivery: string | null };
-const STAGES = [
+const STAGES = [\n  { value: "stock_check", label: "Проверка наличия на складе", role: "order_receiver" },
   { value: "manager_review", label: "Проверка менеджером", role: "manager" },
   { value: "warehouse", label: "Приёмка на складе", role: "warehouse" },
   { value: "picking", label: "Комплектация", role: "warehouse" },
@@ -18,7 +18,7 @@ const STAGES = [
   { value: "shipping", label: "Отгрузка и логистика", role: "logistics" },
   { value: "delivery", label: "Доставка клиенту", role: "logistics" },
 ];
-const ROLE_NAMES: Record<string, string> = { shipment_preparer: "Подготовка отправки", manager: "Менеджер", warehouse: "Склад", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика" };
+const ROLE_NAMES: Record<string, string> = { order_receiver: "Приёмщик заказов", shipment_preparer: "Подготовка отправки", manager: "Менеджер", warehouse: "Склад", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика" };
 const fieldStyle: React.CSSProperties = { display: "block", width: "100%", marginTop: 6, padding: "10px 12px", border: "1px solid #d8d0c6", borderRadius: 4, background: "#fff" };
 
 export default function OrderWorkflowPage() {
