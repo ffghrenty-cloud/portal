@@ -9,7 +9,7 @@ export async function POST() {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
-  return new Promise((resolve) => {
+  return new Promise<NextResponse>((resolve) => {
     db.get(
       "SELECT role FROM users WHERE id = ?",
       [userId],
