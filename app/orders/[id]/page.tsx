@@ -206,6 +206,7 @@ export default function OrderDetailPage() {
 
         <section style={{ margin: "26px 0 18px", padding: "22px 24px", background: "#fff", border: "1px solid #e8e1d8" }}>
           <h2 className="order-detail-section" style={{ marginBottom: 16 }}>Отслеживание доставки</h2>
+          <div className="profile-info-row"><span className="profile-info-label">Менеджер заказа</span><span className="profile-info-value">{order.manager || "Назначается после проверки наличия"}</span></div>
           <div className="profile-info-row"><span className="profile-info-label">Перевозчик</span><span className="profile-info-value">{order.tracking_carrier || "Ещё не назначен"}</span></div>
           <div className="profile-info-row"><span className="profile-info-label">Номер отправления</span><span className="profile-info-value">{order.tracking_number || "Появится после отгрузки"}</span></div>
           <div className="profile-info-row"><span className="profile-info-label">Ожидаемая доставка</span><span className="profile-info-value">{order.estimated_delivery ? new Date(order.estimated_delivery + "T00:00:00").toLocaleDateString("ru-RU") : "Дата уточняется"}</span></div>
