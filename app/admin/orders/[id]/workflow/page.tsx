@@ -15,6 +15,7 @@ const STAGES = [
   { value: "quality_check", label: "Контроль качества", role: "quality" },
   { value: "packing", label: "Упаковка", role: "packer" },
   { value: "shipping", label: "Отгрузка и логистика", role: "logistics" },
+  { value: "delivery", label: "Доставка клиенту", role: "logistics" },
 ];
 const ROLE_NAMES: Record<string, string> = { manager: "Менеджер", warehouse: "Склад", quality: "Контроль качества", packer: "Упаковка", logistics: "Логистика" };
 export default function OrderWorkflowPage() {
