@@ -70,7 +70,7 @@ export async function POST(request: Request) {
           const orderId = this.lastID;
           db.run(
             `INSERT INTO order_events (order_id, status, title, description, actor_user_id)
-             VALUES (?, 'pending', 'Заказ оформлен', 'Заказ отправлен и ожидает проверки менеджером', ?)`,
+             VALUES (?, 'pending', 'Заказ оформлен', 'Заказ отправлен. Сотрудник проверит наличие товаров, затем заказ поступит менеджеру', ?)`,
             [orderId, userId]
           );
           const stmt = db.prepare(
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
                 completed++;
                 if (completed === totalItems && !hasError) {
                   stmt.finalize();
-                  void assignStageAutomatically(orderId, "manager_review");
+                  void assignStageAutomatically(orderId, "stock_check");
                   void notifyOrderCustomer(
                     orderId,
                     "Заказ принят",
