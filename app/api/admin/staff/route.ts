@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import db from "@/lib/db";
 import { assignStageAutomatically } from "@/lib/order-automation";
 
-const STAFF_ROLES = ["manager", "senior_manager", "warehouse", "quality", "packer", "logistics"];
+const STAFF_ROLES = ["manager", "senior_manager", "order_receiver", "warehouse", "quality", "packer", "shipment_preparer", "logistics"];
 
 async function currentUser() {
   const id = (await cookies()).get("userId")?.value;
