@@ -24,7 +24,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, sku, category, price, description, image_url } = body;
+  const { name, sku, category, price, description, image_url, stock_quantity } = body;
 
   return new Promise<NextResponse>((resolve) => {
     db.run(
