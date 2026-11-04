@@ -30,6 +30,14 @@ type OrderEvent = {
   created_at: string;
 };
 
+type OrderNotification = {
+  id: number;
+  title: string;
+  message: string;
+  is_read: number;
+  created_at: string;
+};
+
 type OrderItem = {
   id: number;
   product_id: number;
@@ -60,6 +68,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [events, setEvents] = useState<OrderEvent[]>([]);
+  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -77,6 +86,7 @@ export default function OrderDetailPage() {
             setOrder(data.order);
             setItems(data.items || []);
             setEvents(data.events || []);
+            setNotifications(data.notifications || []);
           }
           setLoading(false);
         })
@@ -169,6 +179,21 @@ export default function OrderDetailPage() {
           <div className="profile-info-row"><span className="profile-info-label">Ожидаемая доставка</span><span className="profile-info-value">{order.estimated_delivery ? new Date(order.estimated_delivery + "T00:00:00").toLocaleDateString("ru-RU") : "Дата уточняется"}</span></div>
           <small style={{ color: "#8b837a" }}>Статус и история обновляются автоматически каждые 15 секунд.</small>
         </section>
+
+        {notifications.length > 0 && (
+          <section style={{ margin: "18px 0", padding: "20px 24px", background: "#f7f5f1", border: "1px solid #e8e1d8" }}>
+            <h2 className="order-detail-section" style={{ marginBottom: 14 }}>Уведомления по заказу</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              {notifications.map((notification) => (
+                <div key={notification.id}>
+                  <strong>{notification.title}</strong>
+                  <p style={{ margin: "4px 0", color: "#716b64" }}>{notification.message}</p>
+                  <small style={{ color: "#8b837a" }}>{new Date(notification.created_at).toLocaleString("ru-RU")}</small>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section style={{ margin: "18px 0 34px", padding: "24px", background: "#fff", border: "1px solid #e8e1d8" }}>
           <h2 className="order-detail-section" style={{ marginBottom: 22 }}>История и этапы выполнения</h2>
