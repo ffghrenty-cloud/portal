@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
 
-const STAGES: Record<string, string> = {
+const STAGES: Record<string, string> = {\n  stock_check: "order_receiver",
   manager_review: "manager", warehouse: "warehouse", picking: "warehouse",
   quality_check: "quality", packing: "packer", shipping: "logistics", delivery: "logistics", shipment_preparation: "shipment_preparer",
 };
