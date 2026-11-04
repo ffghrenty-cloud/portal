@@ -24,7 +24,7 @@ export default function OrderWorkflowPage() {
   const [stage, setStage] = useState("manager_review"); const [assignee, setAssignee] = useState("");
   const [note, setNote] = useState(""); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
   const selectedStage = STAGES.find(item => item.value === stage)!;
-  const eligible = staff.filter(person => person.role === selectedStage.role);
+  const eligible = staff.filter(person => selectedStage.value === "manager_review" ? ["manager", "senior_manager"].includes(person.role) : person.role === selectedStage.role);
   async function load() {
     const [staffRes, taskRes] = await Promise.all([
       fetch("/api/admin/staff", { cache: "no-store" }), fetch(`/api/admin/orders/${id}/tasks`, { cache: "no-store" }),
