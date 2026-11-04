@@ -4,7 +4,7 @@ import db from "@/lib/db";
 
 const STAGES: Record<string, string> = {
   stock_check: "order_receiver",
-  manager_review: "manager", warehouse: "warehouse", picking: "warehouse",
+  manager_review: "manager", stock_check: "order_receiver", warehouse: "warehouse", picking: "warehouse",
   quality_check: "quality", packing: "packer", shipping: "logistics", delivery: "logistics", shipment_preparation: "shipment_preparer",
 };
 async function currentUser() {
@@ -46,12 +46,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           (existingErr, existing: any) => {
             if (existingErr) return resolve(NextResponse.json({ error: existingErr.message }, { status: 500 }));
             const saveTask = (taskId: number, statusCode: number) => {
-              const labels: Record<string, string> = { manager_review: "Назначен менеджер", shipment_preparation: "Назначен сотрудник подготовки отправки", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
-              db.run(
+              const labels: Record<string, string> = { stock_check: "Назначен приёмщик заказов", manager_review: "Назначен менеджер", shipment_preparation: "Назначен сотрудник подготовки отправки", warehouse: "Назначен сотрудник склада", picking: "Назначен комплектовщик", quality_check: "Назначен контролёр качества", packing: "Назначен упаковщик", shipping: "Назначен сотрудник логистики", delivery: "Назначен сотрудник доставки" };
+              const writeEvent = () => db.run(
                 "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, (SELECT status FROM orders WHERE id = ?), ?, ?, ?)",
                 [id, id, existing ? "Ответственный переназначен" : labels[stage], "Ответственный: " + user.email, actor.id],
                 (eventErr) => resolve(eventErr ? NextResponse.json({ error: eventErr.message }, { status: 500 }) : NextResponse.json({ ok: true, taskId }, { status: statusCode }))
               );
+              if (stage === "manager_review") {
+                db.run("UPDATE orders SET manager = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [user.email, id], (managerErr) => {
+                  if (managerErr) return resolve(NextResponse.json({ error: managerErr.message }, { status: 500 }));
+                  writeEvent();
+                });
+              } else writeEvent();
             };
             if (existing) {
               db.run(
