@@ -59,11 +59,16 @@ export function assignStageAutomatically(
                   [orderId, stage, staff.id, assignedByUserId, "Назначено системой автоматически"],
                   (insertError) => {
                     if (insertError) return resolve();
-                    db.run(
-                      "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                      [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId]
-                    );
-                    resolve();
+                    const recordAssignment = () => {
+                      db.run(
+                        "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
+                        [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId]
+                      );
+                      resolve();
+                    };
+                    if (stage === "manager_review") {
+                      db.run("UPDATE orders SET manager = ? WHERE id = ?", [staff.email, orderId], recordAssignment);
+                    } else recordAssignment();
                   }
                 );
               }
