@@ -22,7 +22,7 @@ export async function GET() {
   return new Promise<NextResponse>((resolve) => {
     db.all(
       `SELECT
-         u.id, u.email, u.company, u.role, u.created_at,
+         u.id, u.email, u.company, u.role, u.created_at, u.discount_percent, u.discount_valid_until,
          (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as orders_count,
          (SELECT COALESCE(SUM(total), 0) FROM orders WHERE user_id = u.id AND status != 'cancelled') as orders_sum
        FROM users u
