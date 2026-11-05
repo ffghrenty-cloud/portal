@@ -15,6 +15,61 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // существующие данные и не пересоздаёт локальную базу.
 db.serialize(() => {
   db.run(`
+    CREATE TABLE IF NOT EXISTS order_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      actor_user_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_user_id) REFERENCES users(id)
+    )
+  `, (error) => { if (error) console.error('Ошибка инициализации истории заказов:', error.message); });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS order_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (error) => { if (error) console.error('Ошибка инициализации уведомлений:', error.message); });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS admin_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      is_from_admin INTEGER NOT NULL DEFAULT 0,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (error) => { if (error) console.error('Ошибка инициализации переписки:', error.message); });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS order_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment TEXT,
+      admin_reply TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      replied_at TEXT,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (error) => { if (error) console.error('Ошибка инициализации отзывов:', error.message); });
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS order_stage_tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
