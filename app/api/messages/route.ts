@@ -18,7 +18,7 @@ export async function GET() {
        ORDER BY created_at ASC`,
       [userId],
       (err, rows) => {
-        if (err) resolve(NextResponse.json({ messages: [] }));
+        if (err) resolve(NextResponse.json({ error: "Не удалось загрузить переписку: " + err.message }, { status: 500 }));
         else resolve(NextResponse.json({ messages: rows }));
       }
     );
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { text } = body;
 
-  if (!text || !text.trim()) {
+  if (typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Пустое сообщение" }, { status: 400 });
   }
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     db.run(
       `INSERT INTO admin_messages (user_id, text, is_from_admin)
        VALUES (?, ?, 0)`,
-      [userId, text.trim()],
+      [userId, text.trim().slice(0, 3000)],
       function (err) {
         if (err) {
           resolve(NextResponse.json({ error: err.message }, { status: 500 }));
