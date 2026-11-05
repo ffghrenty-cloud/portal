@@ -16,17 +16,51 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [orderStats, setOrderStats] = useState({ active: 0, total: 0, sum: 0 });
 
   useEffect(() => {
-    fetch("/api/me", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) setUser(data.user);
-        else router.push("/login");
-        setLoading(false);
-      })
-      .catch(() => router.push("/login"));
+    let cancelled = false;
+
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/me", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Не удалось проверить авторизацию. Попробуйте обновить страницу.");
+        }
+
+        const data = await res.json();
+        if (!data.user) {
+          throw new Error("Сервер не вернул данные пользователя.");
+        }
+
+        if (!cancelled) setUser(data.user);
+      } catch (error) {
+        if (!cancelled) {
+          setAuthError(
+            error instanceof Error
+              ? error.message
+              : "Не удалось загрузить личный кабинет."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadUser();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -48,6 +82,18 @@ export default function ProfilePage() {
       <div className="profile-page">
         <div className="profile-container">
           <div className="profile-empty">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="profile-page">
+        <div className="profile-container">
+          <div className="profile-empty" role="alert">
+            {authError} <button onClick={() => window.location.reload()}>Повторить</button>
+          </div>
         </div>
       </div>
     );
@@ -127,7 +173,6 @@ export default function ProfilePage() {
 
             <div className="profile-orders">
               <span className="profile-card-title">Последние заказы</span>
-
               <div className="profile-empty">
                 У вас пока нет заказов.{" "}
                 <Link href="/catalog">Перейти в каталог</Link>
@@ -136,7 +181,6 @@ export default function ProfilePage() {
 
             <div className="profile-orders">
               <span className="profile-card-title">Документы</span>
-
               <div className="profile-empty">
                 Документов пока нет. Они появятся после оформления заказа.
               </div>
