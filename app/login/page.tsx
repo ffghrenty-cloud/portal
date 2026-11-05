@@ -36,7 +36,8 @@ export default function LoginPage() {
         admin: "/admin",
         client: "/profile",
         order_receiver: "/staff/intake",
-        manager: "/staff/tasks",
+        manager: "/staff/manager",
+        senior_manager: "/staff/manager",
         warehouse_worker: "/staff/tasks",
         accountant: "/staff/tasks",
       };
