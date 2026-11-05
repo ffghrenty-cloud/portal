@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const order = await get("SELECT id, user_id, status FROM orders WHERE id = ?", [id]);
         if (!order) throw new Error("Заказ не найден");
         if (["cancelled", "delivered"].includes(order.status)) throw new Error("Нельзя отгружать отменённый или доставленный заказ");
-        if (!["ready", "partially_shipped", "shipped"].includes(order.status)) throw new Error("Отгрузка доступна после того, как сотрудник подготовки отметит заказ загруженным и готовым к отправке");
+        if (!["ready", "partially_shipped"].includes(order.status)) throw new Error("Отгрузка доступна после того, как сотрудник подготовки отметит заказ загруженным и готовым к отправке");
         const requested = new Map<number, number>();
         for (const item of items) {
           const itemId = Number(item.orderItemId), qty = Number(item.quantity);
@@ -70,7 +70,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const line = orderLines.find(row => Number(row.id) === itemId);
           if (!line) throw new Error("Позиция не относится к этому заказу");
           const remaining = Number(line.quantity) - Number(line.shipped_quantity);
-          const checkedAvailable = Math.max(Number(line.available_quantity ?? 0) - Number(line.shipped_quantity), Number(line.stock_quantity));
+          const checkedAvailable = Math.min(
+            Math.max(0, Number(line.available_quantity ?? 0) - Number(line.shipped_quantity)),
+            Math.max(0, Number(line.stock_quantity))
+          );
           if (qty > remaining) throw new Error("Нельзя отгрузить больше, чем осталось по заказу");
           if (qty > checkedAvailable) throw new Error(`По позиции №${itemId} склад подтвердил только ${Math.max(0, checkedAvailable)} шт. доступных к отгрузке`);
           if (qty > Number(line.stock_quantity)) throw new Error("На текущем складе недостаточно товара для этой отгрузки");
