@@ -10,6 +10,7 @@ const MENU = [
   { href: "/documents", label: "Документы" },
   { href: "/profile/requisites", label: "Мои реквизиты" },
   { href: "/profile/settings", label: "Настройки" },
+  { href: "/messages", label: "Связь с администрацией" },
 ];
 
 export default function ProfileLayout() {
