@@ -222,6 +222,12 @@ export default function CheckoutPage() {
     [contactName, contactPhone, city, address]
   );
 
+  const subtotalAmount = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
+  const discountIsActive = user && (!user.discount_valid_until || user.discount_valid_until >= new Date().toISOString().slice(0, 10));
+  const personalDiscount = discountIsActive ? Math.max(0, Math.min(80, Number(user.discount_percent) || 0)) : 0;
+  const discountAmount = Math.round(subtotalAmount * personalDiscount) / 100;
+  const finalTotal = Math.max(0, Math.round((subtotalAmount - discountAmount) * 100) / 100);
+
   const isFormValid =
     !errors.contactName &&
     !errors.contactPhone &&
@@ -489,9 +495,13 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
+            {personalDiscount > 0 && <>
+              <div className="cart-summary-total"><span>Сумма товаров</span><b>{subtotalAmount.toFixed(2).replace(".", ",")} BYN</b></div>
+              <div className="cart-summary-total"><span>Ваша персональная скидка ({personalDiscount}%)</span><b>−{discountAmount.toFixed(2).replace(".", ",")} BYN</b></div>
+            </>}
             <div className="cart-summary-total">
               <span>Итого</span>
-              <b>{formattedTotal}</b>
+              <b>{personalDiscount > 0 ? `${finalTotal.toFixed(2).replace(".", ",")} BYN` : formattedTotal}</b>
             </div>
             <p className="checkout-summary-note">
               Менеджер свяжется с вами для подтверждения цены и сроков.

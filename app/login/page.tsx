@@ -18,7 +18,7 @@ export default function LoginPage() {
       const data = await res.json(); setLoading(false);
       if (!res.ok) setError(data.error || "Ошибка входа");
       else {
-        const destination = data.user?.role === "admin" ? "/admin" : data.user?.role === "client" ? "/profile" : "/staff/tasks";
+        const destination = data.user?.role === "admin" ? "/admin" : data.user?.role === "client" ? "/profile" : data.user?.role === "order_receiver" ? "/staff/intake" : "/staff/tasks";
         router.push(destination); router.refresh();
       }
     } catch {

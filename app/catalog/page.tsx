@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/useCart";
 import { useFavorites } from "@/lib/useFavorites";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Heart, Search, X } from "lucide-react";
 import { Product } from "@/lib/Product";
@@ -12,7 +12,7 @@ import { ProductsApiClient } from "@/lib/ProductsApiClient";
 
 type NoticeType = "cart" | "fav" | "fav-remove" | "info";
 
-export default function CatalogPage() {
+function CatalogContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -344,5 +344,13 @@ export default function CatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={<div className="catalog-section"><p>Загрузка каталога...</p></div>}>
+      <CatalogContent />
+    </Suspense>
   );
 }

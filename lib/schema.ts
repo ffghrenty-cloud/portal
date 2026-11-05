@@ -89,6 +89,46 @@ export function initDatabase(): Promise<void> {
         FOREIGN KEY (assigned_by_user_id) REFERENCES users(id)
       );
 
+      CREATE TABLE IF NOT EXISTS order_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment TEXT,
+        admin_reply TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        replied_at DATETIME,
+        FOREIGN KEY (order_id) REFERENCES orders(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS order_fulfillments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'prepared',
+        tracking_carrier TEXT,
+        tracking_number TEXT,
+        note TEXT,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        shipped_at DATETIME,
+        FOREIGN KEY (order_id) REFERENCES orders(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS order_fulfillment_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fulfillment_id INTEGER NOT NULL,
+        order_item_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        FOREIGN KEY (fulfillment_id) REFERENCES order_fulfillments(id),
+        FOREIGN KEY (order_item_id) REFERENCES order_items(id),
+        UNIQUE (fulfillment_id, order_item_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_order_fulfillments_order ON order_fulfillments(order_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_order_reviews_user ON order_reviews(user_id, created_at);
+
       CREATE INDEX IF NOT EXISTS idx_order_events_order_id ON order_events(order_id);
       CREATE INDEX IF NOT EXISTS idx_order_tasks_assignee ON order_stage_tasks(assigned_user_id, status);
 
@@ -107,7 +147,17 @@ export function initDatabase(): Promise<void> {
         const migrations = [
           "ALTER TABLE orders ADD COLUMN tracking_carrier TEXT",
           "ALTER TABLE orders ADD COLUMN tracking_number TEXT",
-          "ALTER TABLE orders ADD COLUMN estimated_delivery TEXT"
+          "ALTER TABLE orders ADD COLUMN estimated_delivery TEXT",
+          "ALTER TABLE users ADD COLUMN discount_percent REAL NOT NULL DEFAULT 0",
+          "ALTER TABLE users ADD COLUMN discount_valid_until TEXT",
+          "ALTER TABLE products ADD COLUMN stock_quantity INTEGER NOT NULL DEFAULT 0",
+          "ALTER TABLE orders ADD COLUMN subtotal REAL NOT NULL DEFAULT 0",
+          "ALTER TABLE orders ADD COLUMN discount_percent REAL NOT NULL DEFAULT 0",
+          "ALTER TABLE orders ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0",
+          "ALTER TABLE orders ADD COLUMN stock_checked_by INTEGER",
+          "ALTER TABLE orders ADD COLUMN stock_checked_at DATETIME",
+          "ALTER TABLE order_items ADD COLUMN available_quantity INTEGER",
+          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT"
         ];
         const runMigration = (index: number) => {
           if (index >= migrations.length) {

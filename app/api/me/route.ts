@@ -12,7 +12,7 @@ export async function GET() {
 
   return new Promise<NextResponse>((resolve) => {
     db.get(
-      "SELECT id, email, role, company FROM users WHERE id = ?",
+      "SELECT id, email, role, company, discount_percent, discount_valid_until FROM users WHERE id = ?",
       [userId],
       (err, user) => {
         if (err || !user) {

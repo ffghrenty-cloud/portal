@@ -7,11 +7,13 @@ type StageConfig = {
 };
 
 export const ORDER_STAGES: Record<string, StageConfig> = {
+  stock_check: { role: ["order_receiver"], label: "Проверка наличия на складе", next: "manager_review" },
   manager_review: { role: ["manager", "senior_manager"], label: "Проверка менеджером", next: "warehouse" },
   warehouse: { role: ["warehouse"], label: "Приёмка на складе", next: "picking" },
   picking: { role: ["warehouse"], label: "Комплектация", next: "quality_check" },
   quality_check: { role: ["quality"], label: "Контроль качества", next: "packing" },
-  packing: { role: ["packer"], label: "Упаковка", next: "shipping" },
+  packing: { role: ["packer"], label: "Упаковка", next: "shipment_preparation" },
+  shipment_preparation: { role: ["shipment_preparer"], label: "Подготовка и загрузка отправки", next: "shipping" },
   shipping: { role: ["logistics"], label: "Передача в доставку", next: "delivery" },
   delivery: { role: ["logistics"], label: "Доставка клиенту" },
 };
@@ -57,11 +59,16 @@ export function assignStageAutomatically(
                   [orderId, stage, staff.id, assignedByUserId, "Назначено системой автоматически"],
                   (insertError) => {
                     if (insertError) return resolve();
-                    db.run(
-                      "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                      [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId]
-                    );
-                    resolve();
+                    const recordAssignment = () => {
+                      db.run(
+                        "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
+                        [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId]
+                      );
+                      resolve();
+                    };
+                    if (stage === "manager_review") {
+                      db.run("UPDATE orders SET manager = ? WHERE id = ?", [staff.email, orderId], recordAssignment);
+                    } else recordAssignment();
                   }
                 );
               }

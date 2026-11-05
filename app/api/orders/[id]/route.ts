@@ -54,7 +54,28 @@ export async function GET(
                     if (notificationError) {
                       return resolve(NextResponse.json({ error: notificationError.message }, { status: 500 }));
                     }
-                    resolve(NextResponse.json({ order, items, events, notifications }));
+                    db.all(
+                      `SELECT f.id, f.status, f.tracking_carrier, f.tracking_number, f.note, f.created_at, f.shipped_at,
+                              oi.product_name, fi.quantity
+                       FROM order_fulfillments f
+                       JOIN order_fulfillment_items fi ON fi.fulfillment_id = f.id
+                       JOIN order_items oi ON oi.id = fi.order_item_id
+                       WHERE f.order_id = ? ORDER BY f.created_at ASC, fi.id ASC`,
+                      [id],
+                      (fulfillmentError, rows: any[]) => {
+                        if (fulfillmentError) return resolve(NextResponse.json({ error: fulfillmentError.message }, { status: 500 }));
+                        const map = new Map<number, any>();
+                        for (const row of rows || []) {
+                          if (!map.has(row.id)) map.set(row.id, {
+                            id: row.id, status: row.status, carrier: row.tracking_carrier,
+                            trackingNumber: row.tracking_number, note: row.note,
+                            createdAt: row.created_at, shippedAt: row.shipped_at, items: []
+                          });
+                          map.get(row.id).items.push({ name: row.product_name, quantity: row.quantity });
+                        }
+                        resolve(NextResponse.json({ order, items, events, notifications, fulfillments: Array.from(map.values()) }));
+                      }
+                    );
                   }
                 );
               }

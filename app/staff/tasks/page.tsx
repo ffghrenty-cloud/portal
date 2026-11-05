@@ -11,7 +11,7 @@ type Task = {
 };
 const STAGES: Record<string, string> = {
   manager_review: "Проверка менеджером", warehouse: "Приёмка на складе", picking: "Комплектация",
-  quality_check: "Контроль качества", packing: "Упаковка", shipping: "Отгрузка и логистика",
+  quality_check: "Контроль качества", packing: "Упаковка", shipment_preparation: "Подготовка и загрузка отправки", shipping: "Отгрузка и логистика", delivery: "Доставка клиенту",
 };
 export default function StaffTasksPage() {
   const router = useRouter();
@@ -52,7 +52,8 @@ export default function StaffTasksPage() {
           </div>
           <h2 style={{ margin: "12px 0" }}>{STAGES[task.stage] || task.stage}</h2>
           <p style={{ margin: "6px 0" }}>Клиент: {task.customer_company || task.customer_email}</p>
-          <p style={{ margin: "6px 0" }}>Контакт: {task.contact_name || "—"} · {task.contact_phone || "—"}</p>
+          <p style={{ margin: "6px 0" }}>Контакт: {task.contact_name || "—"} · {task.contact_phone ? <a href={`tel:${task.contact_phone}`}>{task.contact_phone}</a> : "—"}</p>
+          <p style={{ margin: "6px 0" }}>Email заказчика: <a href={`mailto:${task.customer_email}`}>{task.customer_email}</a></p>
           <p style={{ margin: "6px 0" }}>Сумма заказа: {Number(task.total).toFixed(2).replace(".", ",")} BYN</p>
           {task.note && <p style={{ color: "#6d665e" }}>Примечание: {task.note}</p>}
           <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>

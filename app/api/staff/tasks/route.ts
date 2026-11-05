@@ -12,7 +12,7 @@ export async function GET() {
               o.status AS order_status, o.total, o.contact_name, o.contact_phone, o.address,
               u.email AS customer_email, u.company AS customer_company
        FROM order_stage_tasks t JOIN orders o ON o.id = t.order_id JOIN users u ON u.id = o.user_id
-       WHERE t.assigned_user_id = ?
+       WHERE t.assigned_user_id = ? AND t.stage != 'stock_check'
        ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.created_at ASC`,
       [userId], (err, tasks) => resolve(err ? NextResponse.json({ error: err.message }, { status: 500 }) : NextResponse.json({ tasks }))
     );

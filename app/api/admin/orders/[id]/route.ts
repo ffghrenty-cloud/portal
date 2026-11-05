@@ -7,7 +7,7 @@ async function isAdmin(): Promise<boolean> {
   const userId = cookieStore.get("userId")?.value;
   if (!userId) return false;
 
-  return new Promise<NextResponse>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
       resolve(!err && row && row.role === "admin");
     });
@@ -17,6 +17,7 @@ async function isAdmin(): Promise<boolean> {
 const ALLOWED_STATUSES = [
   "draft",
   "pending",
+  "stock_checked",
   "confirmed",
   "production",
   "warehouse",
@@ -24,6 +25,7 @@ const ALLOWED_STATUSES = [
   "quality_check",
   "packing",
   "ready",
+  "partially_shipped",
   "shipped",
   "delivered",
   "cancelled",
@@ -33,19 +35,24 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
-  }
+  if (!(await isAdmin())) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
   return new Promise<NextResponse>((resolve) => db.get(
-    "SELECT id, status, tracking_carrier, tracking_number, estimated_delivery FROM orders WHERE id = ?",
+    "SELECT id, status, total, subtotal, discount_percent, discount_amount, manager, tracking_carrier, tracking_number, estimated_delivery FROM orders WHERE id = ?",
     [id],
-    (err, order) => resolve(err
-      ? NextResponse.json({ error: err.message }, { status: 500 })
-      : order
-        ? NextResponse.json({ order })
-        : NextResponse.json({ error: "Заказ не найден" }, { status: 404 })
-    )
+    (err, order: any) => {
+      if (err) return resolve(NextResponse.json({ error: err.message }, { status: 500 }));
+      if (!order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
+      db.all(
+        `SELECT oi.id, oi.product_id, oi.product_name, oi.quantity, oi.price, oi.available_quantity, p.stock_quantity,
+          COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
+         FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ? ORDER BY oi.id ASC`,
+        [id],
+        (itemsErr, items) => resolve(itemsErr
+          ? NextResponse.json({ error: itemsErr.message }, { status: 500 })
+          : NextResponse.json({ order, items }))
+      );
+    }
   ));
 }
 
@@ -104,7 +111,8 @@ export async function PATCH(
         } else if (status && this.changes > 0) {
           const titles: Record<string, string> = {
             draft: "Черновик заказа",
-            pending: "Заказ ожидает менеджера",
+            pending: "Заказ ожидает проверки наличия",
+            stock_checked: "Наличие проверено складом",
             confirmed: "Заказ согласован",
             production: "Передан в производство",
             warehouse: "Передан на склад",
@@ -112,6 +120,7 @@ export async function PATCH(
             quality_check: "Проверка комплектации",
             packing: "Упаковка заказа",
             ready: "Заказ готов к отгрузке",
+            partially_shipped: "Часть заказа отгружена",
             shipped: "Заказ отгружен",
             delivered: "Заказ доставлен",
             cancelled: "Заказ отменён",

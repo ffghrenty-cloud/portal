@@ -7,7 +7,7 @@ async function isAdmin(): Promise<boolean> {
   const userId = cookieStore.get("userId")?.value;
   if (!userId) return false;
 
-  return new Promise<NextResponse>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
       resolve(!err && row && row.role === "admin");
     });
@@ -24,7 +24,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, sku, category, price, description, image_url } = body;
+  const { name, sku, category, price, description, image_url, stock_quantity } = body;
 
   return new Promise<NextResponse>((resolve) => {
     db.run(
