@@ -105,10 +105,9 @@ export async function PATCH(request: Request) {
               Number(value.availableQuantity), typeof value.note === "string" ? value.note.trim().slice(0, 300) : null, row.id
             ], (err) => {
               if (err) return resolve(NextResponse.json({ error: err.message }, { status: 500 }));
-              db.run("UPDATE products SET stock_quantity = ? WHERE id = ?", [Number(value.availableQuantity), row.product_id], (stockErr) => {
-                if (stockErr) return resolve(NextResponse.json({ error: stockErr.message }, { status: 500 }));
-                saveNext();
-              });
+              // Keep the catalog stock balance unchanged during availability verification.
+              // The confirmed quantity belongs to this order line and is stored in order_items.
+              saveNext();
             });
           };
           saveNext();
