@@ -18,7 +18,7 @@ export async function GET() {
 
       db.all(
         `SELECT t.id AS task_id, t.order_id, t.status AS task_status, t.note AS task_note,
-                t.created_at AS assigned_at, o.status AS order_status, o.total, o.subtotal,
+                t.created_at AS assigned_at, o.status AS order_status, o.total,
                 o.discount_percent, o.contact_name, o.contact_phone, o.address, o.comment,
                 o.created_at AS order_created_at, u.email AS customer_email, u.company AS customer_company
          FROM order_stage_tasks t
