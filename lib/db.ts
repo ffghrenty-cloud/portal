@@ -92,8 +92,44 @@ db.serialize(() => {
       db.run(
         'CREATE INDEX IF NOT EXISTS idx_order_stage_tasks_assignee_status ON order_stage_tasks(assigned_user_id, status, stage)',
         (indexError) => {
-          if (indexError) console.error('Ошибка индекса очереди заданий:', indexError.message);
-          else console.log('✅ Схема очереди заданий проверена');
+          if (indexError) {
+            console.error('Ошибка индекса очереди заданий:', indexError.message);
+            return;
+          }
+          console.log('✅ Схема очереди заданий проверена');
+
+          // Подхватываем старые заказы, созданные до появления очереди заданий.
+          // Повторный запуск безопасен: NOT EXISTS не создаёт дубликаты.
+          db.run(`
+            INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, status, note)
+            SELECT o.id, 'stock_check',
+                   (SELECT u.id FROM users u WHERE u.role = 'order_receiver' ORDER BY u.created_at ASC, u.id ASC LIMIT 1),
+                   'pending', 'Назначено автоматически при обновлении системы'
+            FROM orders o
+            WHERE o.status = 'pending'
+              AND EXISTS (SELECT 1 FROM users WHERE role = 'order_receiver')
+              AND NOT EXISTS (
+                SELECT 1 FROM order_stage_tasks t
+                WHERE t.order_id = o.id AND t.stage = 'stock_check' AND t.status != 'cancelled'
+              )
+          `, (seedError) => {
+            if (seedError) console.error('Ошибка восстановления очереди приёмщика:', seedError.message);
+            db.run(`
+              INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, status, note)
+              SELECT o.id, 'manager_review',
+                     (SELECT u.id FROM users u WHERE u.role IN ('manager', 'senior_manager') ORDER BY u.created_at ASC, u.id ASC LIMIT 1),
+                     'pending', 'Назначено автоматически при обновлении системы'
+              FROM orders o
+              WHERE o.status = 'stock_checked'
+                AND EXISTS (SELECT 1 FROM users WHERE role IN ('manager', 'senior_manager'))
+                AND NOT EXISTS (
+                  SELECT 1 FROM order_stage_tasks t
+                  WHERE t.order_id = o.id AND t.stage = 'manager_review' AND t.status != 'cancelled'
+                )
+            `, (managerSeedError) => {
+              if (managerSeedError) console.error('Ошибка восстановления очереди менеджера:', managerSeedError.message);
+            });
+          });
         }
       );
     }
