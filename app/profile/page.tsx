@@ -104,7 +104,7 @@ export default function ProfilePage() {
   const roleName =
     user.role === "admin"
       ? "Администратор"
-      : user.role === "manager"
+      : ["manager", "senior_manager"].includes(user.role)
       ? "Менеджер"
       : "Оптовый заказчик";
 
@@ -119,6 +119,11 @@ export default function ProfilePage() {
             </h1>
           </div>
           <div className="profile-actions">
+            {["manager", "senior_manager"].includes(user.role) && (
+              <Link href="/staff/manager" className="button dark">
+                Панель менеджера
+              </Link>
+            )}
             <Link href="/catalog" className="button dark">
               В каталог
             </Link>
