@@ -28,7 +28,7 @@ export async function GET() {
          ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.created_at ASC`,
         [userId],
         (tasksError, rows: any[]) => {
-          if (tasksError) return resolve(NextResponse.json({ error: "Не удалось загрузить очередь менеджера" }, { status: 500 }));
+          if (tasksError) return resolve(NextResponse.json({ error: "Ошибка очереди менеджера: " + tasksError.message }, { status: 500 }));
           const tasks = rows || [];
           if (!tasks.length) return resolve(NextResponse.json({ manager: { email: user.email, role: user.role }, tasks: [] }));
 
