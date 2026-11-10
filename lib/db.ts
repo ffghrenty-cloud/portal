@@ -141,10 +141,18 @@ const db = {
   },
 
   exec(sql: string, callback?: (error: Error | null) => void) {
-    const statements = sql.split(";").map((part) => part.trim()).filter(Boolean);
-    void (async () => {
-      for (const statement of statements) await execute(statement);
-    })().then(() => callback?.(null)).catch((error) => callback?.(error as Error));
+    const context = contexts.getStore();
+    const operation = context?.transaction
+      ? context.transaction.executeMultiple(sql)
+      : (async () => {
+          const release = await acquireLock();
+          try {
+            await client.executeMultiple(sql);
+          } finally {
+            release();
+          }
+        })();
+    void operation.then(() => callback?.(null)).catch((error) => callback?.(error as Error));
     return db;
   },
 
