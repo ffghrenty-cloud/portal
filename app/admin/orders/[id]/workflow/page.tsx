@@ -70,7 +70,7 @@ export default function OrderWorkflowPage() {
       setTrackingNumber(current.tracking_number || "");
       setEstimatedDelivery(current.estimated_delivery || "");
       setItems(orderData.items || []);
-      setShipQuantities(Object.fromEntries((orderData.items || []).map((item: OrderLine) => [item.id, Math.max(0, Math.min(item.quantity - item.shipped_quantity, Math.max((item.available_quantity ?? 0) - item.shipped_quantity, item.stock_quantity)))])));
+      setShipQuantities(Object.fromEntries((orderData.items || []).map((item: OrderLine) => [item.id, Math.max(0, Math.min(item.quantity - item.shipped_quantity, Math.max(0, (item.available_quantity ?? 0) - item.shipped_quantity), item.stock_quantity))])));
     }
     if (fulfillmentRes.ok) setFulfillments(fulfillmentData.fulfillments || []);
     if (!staffRes.ok || !taskRes.ok || !orderRes.ok || !fulfillmentRes.ok) setMessage(staffData.error || taskData.error || orderData.error || "Не удалось загрузить данные");
@@ -143,7 +143,7 @@ export default function OrderWorkflowPage() {
       <p style={{ margin: 0, color: "#716b64" }}>Укажите только то количество, которое отправляется сейчас. Остаток заказа останется открытым для следующего отправления.</p>
       {items.map(item => {
         const remaining = Math.max(0, item.quantity - item.shipped_quantity);
-        const available = Math.max(0, Math.min(remaining, Math.max((item.available_quantity ?? 0) - item.shipped_quantity, item.stock_quantity)));
+        const available = Math.max(0, Math.min(remaining, Math.max(0, (item.available_quantity ?? 0) - item.shipped_quantity), item.stock_quantity));
         return <div key={item.id} style={{ display: "grid", gridTemplateColumns: "minmax(180px,1fr) 110px 120px", gap: 12, alignItems: "center", padding: 10, background: "#f7f5f1" }}>
           <div><strong>{item.product_name}</strong><small style={{ display: "block", color: "#716b64" }}>Заказано: {item.quantity} · Уже отправлено: {item.shipped_quantity} · Подтверждено складом: {available}</small></div>
           <label>Отправить<input type="number" min="0" max={available} value={shipQuantities[item.id] ?? 0} onChange={e => setShipQuantities(current => ({ ...current, [item.id]: Math.max(0, Number(e.target.value)) }))} style={fieldStyle} /></label>
