@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "migrate:turso": "node scripts/migrate-sqlite-to-turso.mjs"
+    "migrate:turso": "node --env-file=.env.local scripts/migrate-sqlite-to-turso.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
