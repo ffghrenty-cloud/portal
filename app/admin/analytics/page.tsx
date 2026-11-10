@@ -23,11 +23,11 @@ export default function AdminAnalyticsPage() {
   const maxUnits = Math.max(1, ...(data?.topProducts || []).map(x => Number(x.units_sold)));
   const maxRevenue = Math.max(1, ...(data?.monthlySales || []).map(x => Number(x.revenue)));
   return <AdminGuard><AdminLayout>
-    <div className="admin-header"><span className="eyebrow">ОТЧЁТЫ</span><h1 className="admin-title">Аналитика продаж</h1><p>Статистика рассчитана по заказам, кроме отменённых.</p></div>
+    <div className="admin-header"><span className="eyebrow">ОТЧЁТЫ</span><h1 className="admin-title">Аналитика продаж</h1><p>Статистика учитывает только фактически отгруженные количества и выручку с учётом скидок.</p></div>
     {error && <p role="alert">{error}</p>}
     {!data ? !error && <p>Загрузка аналитики...</p> : <>
       <div className="admin-stats-grid">
-        <div className="admin-stat-card"><div className="admin-stat-value">{data.summary.orders_count}</div><div className="admin-stat-label">Заказов</div></div>
+        <div className="admin-stat-card"><div className="admin-stat-value">{data.summary.orders_count}</div><div className="admin-stat-label">Заказов с отгрузкой</div></div>
         <div className="admin-stat-card"><div className="admin-stat-value">{data.summary.delivered_orders}</div><div className="admin-stat-label">Доставлено</div></div>
         <div className="admin-stat-card"><div className="admin-stat-value">{money(data.summary.average_order)}</div><div className="admin-stat-label">Средний чек</div></div>
         <div className="admin-stat-card"><div className="admin-stat-value">{money(data.summary.revenue)}</div><div className="admin-stat-label">Сумма продаж</div></div>
@@ -45,7 +45,7 @@ export default function AdminAnalyticsPage() {
         </section>
         <section style={card}>
           <h2 style={{ marginTop: 0 }}>Продажи по месяцам</h2>
-          <p style={{ color: "#777", fontSize: 13 }}>Выручка и количество заказов за последние 12 месяцев.</p>
+          <p style={{ color: "#777", fontSize: 13 }}>Выручка и число заказов по фактическим отгрузкам за последние 12 месяцев.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(12, minmax(12px, 1fr))", gap: 7, alignItems: "end", height: 230, borderBottom: "1px solid #ddd", paddingTop: 12 }}>
             {data.monthlySales.map(month => <div key={month.month} title={`${month.month}: ${money(month.revenue)}, заказов: ${month.orders_count}`} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "end", alignItems: "center", gap: 5 }}>
               <div style={{ width: "100%", height: `${Math.max(3, Number(month.revenue) / maxRevenue * 180)}px`, background: "#88745d", borderRadius: "4px 4px 0 0" }} />
