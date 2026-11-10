@@ -44,14 +44,39 @@ async function main() {
   console.log(`Таблиц для переноса: ${tables.length}`);
   console.log("Проверка Turso: база пустая.");
 
-  // Сначала создаём структуру, затем переносим данные без проверки FK,
-  // поскольку порядок таблиц может отличаться от порядка зависимостей.
-  await target.execute("PRAGMA foreign_keys = OFF");
+  // Сначала создаём все таблицы. Данные переносим в порядке зависимостей
+  // внешних ключей: родительские таблицы должны быть заполнены раньше дочерних.
   for (const table of tables) await target.execute(table.sql);
+
+  const tableNames = new Set(tables.map((table) => table.name));
+  const dependencies = new Map();
+  for (const table of tables) {
+    const foreignKeys = await all(`PRAGMA foreign_key_list(${quote(table.name)})`);
+    dependencies.set(
+      table.name,
+      new Set(foreignKeys.map((key) => key.table).filter((name) => tableNames.has(name) && name !== table.name))
+    );
+  }
+
+  const orderedTables = [];
+  const copiedTables = new Set();
+  while (orderedTables.length < tables.length) {
+    const ready = tables.filter((table) =>
+      !copiedTables.has(table.name) &&
+      [...dependencies.get(table.name)].every((name) => copiedTables.has(name))
+    );
+    if (!ready.length) {
+      throw new Error("Обнаружена циклическая зависимость внешних ключей. Автоматический перенос остановлен.");
+    }
+    for (const table of ready) {
+      orderedTables.push(table);
+      copiedTables.add(table.name);
+    }
+  }
 
   let totalRows = 0;
   const expectedCounts = new Map();
-  for (const table of tables) {
+  for (const table of orderedTables) {
     const rows = await all(`SELECT * FROM ${quote(table.name)}`);
     expectedCounts.set(table.name, rows.length);
     if (rows.length) {
@@ -93,7 +118,6 @@ async function main() {
     await target.execute(object.sql);
   }
 
-  await target.execute("PRAGMA foreign_keys = ON");
   const foreignKeyErrors = await target.execute("PRAGMA foreign_key_check");
   if (foreignKeyErrors.rows.length) {
     throw new Error(`Проверка внешних ключей выявила ошибки: ${JSON.stringify(foreignKeyErrors.rows.slice(0, 10))}`);
