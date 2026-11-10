@@ -1,6 +1,6 @@
-import sqlite3 from "sqlite3";
 import { createClient } from "@libsql/client";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const sourcePath = path.resolve(process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "data.db");
 const confirmed = process.argv.includes("--confirm-empty-target");
@@ -14,13 +14,12 @@ if (!url || !authToken) {
   throw new Error("Задайте TURSO_DATABASE_URL и TURSO_AUTH_TOKEN в переменных окружения.");
 }
 
-const source = new sqlite3.Database(sourcePath, sqlite3.OPEN_READONLY);
+const source = createClient({ url: pathToFileURL(sourcePath).href });
 const target = createClient({ url, authToken });
 
-function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    source.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows));
-  });
+async function all(sql, params = []) {
+  const result = await source.execute({ sql, args: params });
+  return result.rows;
 }
 function quote(identifier) {
   return '"' + identifier.replace(/"/g, '""') + '"';
