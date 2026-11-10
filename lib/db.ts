@@ -173,7 +173,12 @@ const db = {
   },
 
   close(callback?: (error: Error | null) => void) {
-    void client.close().then(() => callback?.(null)).catch((error) => callback?.(error as Error));
+    try {
+      client.close();
+      callback?.(null);
+    } catch (error) {
+      callback?.(error as Error);
+    }
   },
 };
 
