@@ -42,7 +42,7 @@ function normalizeArgs(params?: any[] | Record<string, any>): any[] | Record<str
   return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, value === undefined ? null : value]));
 }
 
-async function execute(sql: string, params?: any[]) {
+async function execute(sql: string, params?: any[] | Record<string, any>) {
   const context = contexts.getStore();
   if (context?.transaction) {
     return context.transaction.execute({ sql, args: normalizeArgs(params) as any });
