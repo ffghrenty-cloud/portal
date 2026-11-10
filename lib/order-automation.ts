@@ -41,7 +41,14 @@ export function assignStageAutomatically(
 
             const placeholders = config.role.map(() => "?").join(", ");
             db.get(
-              `SELECT id, email FROM users WHERE role IN (${placeholders}) ORDER BY created_at ASC, id ASC LIMIT 1`,
+              `SELECT u.id, u.email
+               FROM users u
+               LEFT JOIN order_stage_tasks t
+                 ON t.assigned_user_id = u.id AND t.status IN ('pending', 'in_progress')
+               WHERE u.role IN (${placeholders})
+               GROUP BY u.id, u.email, u.created_at
+               ORDER BY COUNT(t.id) ASC, u.created_at ASC, u.id ASC
+               LIMIT 1`,
               config.role,
               (staffError, staff: any) => {
                 if (staffError || !staff) {
