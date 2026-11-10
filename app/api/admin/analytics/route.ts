@@ -89,7 +89,7 @@ export async function GET() {
   }
 
   // Всегда возвращаем 12 календарных месяцев, включая месяцы без продаж.
-  const monthlyByKey = new Map<string, any>((result.monthlySales || []).map((row: any) => [row.month, row]));
+  const monthlyByKey = new Map<string, any>((result.monthlySales || []).map((row: any) => [String(row.month), row] as [string, any]));
   const months: any[] = [];
   const now = new Date();
   for (let offset = 11; offset >= 0; offset--) {
