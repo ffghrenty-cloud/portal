@@ -11,7 +11,7 @@ const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string
   quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
   packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },
   shipment_preparation: { role: "shipment_preparer", orderStatus: "ready", title: "Заказ загружен и готов к отправке", allowedFrom: ["packing"] },
-  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["shipped"] },
+  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["ready"] },
   delivery: { role: "logistics", orderStatus: "delivered", title: "Заказ доставлен", allowedFrom: ["shipped"] },
 };
 
