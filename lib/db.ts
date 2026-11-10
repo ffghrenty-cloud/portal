@@ -1,6 +1,7 @@
 import { createClient, type Client, type Transaction } from "@libsql/client";
 import { AsyncLocalStorage } from "node:async_hooks";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 type SqlCallback = (error: Error | null, row?: any) => void;
 type RunCallback = (this: { lastID: number; changes: number }, error: Error | null) => void;
@@ -10,7 +11,7 @@ const databaseUrl =
   process.env.TURSO_DATABASE_URL ||
   (process.env.NODE_ENV === "production"
     ? ""
-    : `file:${path.join(process.cwd(), "data.db")}`);
+    : pathToFileURL(path.join(process.cwd(), "data.db")).href);
 
 if (!databaseUrl) {
   throw new Error("Не задан TURSO_DATABASE_URL. Добавьте URL базы Turso в переменные окружения Vercel.");
