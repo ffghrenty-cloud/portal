@@ -7,20 +7,27 @@ type SqlCallback = (error: Error | null, row?: any) => void;
 type RunCallback = (this: { lastID: number; changes: number }, error: Error | null) => void;
 type DbContext = { transaction?: Transaction; release?: () => void };
 
-const databaseUrl =
-  process.env.TURSO_DATABASE_URL ||
-  (process.env.NODE_ENV === "production"
-    ? ""
-    : pathToFileURL(path.join(process.cwd(), "data.db")).href);
+let client: Client | undefined;
 
-if (!databaseUrl) {
-  throw new Error("Не задан TURSO_DATABASE_URL. Добавьте URL базы Turso в переменные окружения Vercel.");
+function getClient(): Client {
+  if (client) return client;
+
+  const databaseUrl =
+    process.env.TURSO_DATABASE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? ""
+      : pathToFileURL(path.join(process.cwd(), "data.db")).href);
+
+  if (!databaseUrl) {
+    throw new Error("Не задан TURSO_DATABASE_URL. Добавьте URL базы Turso в переменные окружения Vercel.");
+  }
+
+  client = createClient({
+    url: databaseUrl,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
+  return client;
 }
-
-const client: Client = createClient({
-  url: databaseUrl,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
 
 const contexts = new AsyncLocalStorage<DbContext>();
 
@@ -51,7 +58,7 @@ async function execute(sql: string, params?: any[] | Record<string, any>) {
 
   const release = await acquireLock();
   try {
-    return await client.execute({ sql, args: normalizeArgs(params) as any });
+    return await getClient().execute({ sql, args: normalizeArgs(params) as any });
   } finally {
     release();
   }
@@ -92,7 +99,7 @@ const db = {
         if (context.transaction) throw new Error("Вложенные транзакции не поддерживаются");
         context.release = await acquireLock();
         try {
-          context.transaction = await client.transaction("write");
+          context.transaction = await getClient().transaction("write");
           return { lastInsertRowid: 0, rowsAffected: 0 };
         } catch (error) {
           context.release();
@@ -147,7 +154,7 @@ const db = {
       : (async () => {
           const release = await acquireLock();
           try {
-            await client.executeMultiple(sql);
+            await getClient().executeMultiple(sql);
           } finally {
             release();
           }
@@ -183,7 +190,7 @@ const db = {
 
   close(callback?: (error: Error | null) => void) {
     try {
-      client.close();
+      getClient().close();
       callback?.(null);
     } catch (error) {
       callback?.(error as Error);
