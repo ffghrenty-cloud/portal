@@ -46,7 +46,7 @@ export async function GET(
       if (!order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
       db.all(
         `SELECT oi.id, oi.product_id, oi.product_name, oi.quantity, oi.price, oi.available_quantity, p.stock_quantity,
-          COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
+          COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status IN ('shipped', 'delivered')), 0) AS shipped_quantity
          FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ? ORDER BY oi.id ASC`,
         [id],
         (itemsErr, items) => resolve(itemsErr
