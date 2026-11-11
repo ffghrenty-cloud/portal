@@ -24,21 +24,13 @@ type User = {
   company: string | null;
 };
 
-type Order = {
+type Notification = {
   id: number;
-  status: string;
-  total: number;
+  order_id: number;
+  title: string;
+  message: string;
+  is_read: number;
   created_at: string;
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Черновик",
-  pending: "На согласовании",
-  confirmed: "Подтверждён",
-  production: "В производстве",
-  ready: "Готов к отгрузке",
-  shipped: "Отгружен",
-  cancelled: "Отменён",
 };
 
 export default function Header() {
@@ -56,7 +48,8 @@ export default function Header() {
 
   // Уведомления
   const [notifOpen, setNotifOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -85,17 +78,43 @@ export default function Header() {
     client.fetchAll().then(setProducts).catch(() => {});
   }, [products.length]);
 
-  // Заказы для уведомлений
+  // Счётчик и последние уведомления по заказам
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    let cancelled = false;
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch("/api/notifications", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setNotifications(data.notifications || []);
+          setUnreadCount(Number(data.unreadCount || 0));
+        }
+      } catch {}
+    };
+    void loadNotifications();
+    return () => { cancelled = true; };
+  }, [user, pathname]);
+
   useEffect(() => {
     if (!notifOpen || !user) return;
+    let cancelled = false;
     setNotifLoading(true);
-    fetch("/api/orders", { cache: "no-store" })
-      .then((res) => res.json())
+    fetch("/api/notifications", { cache: "no-store" })
+      .then((res) => res.ok ? res.json() : Promise.reject())
       .then((data) => {
-        setOrders(data.orders || []);
-        setNotifLoading(false);
+        if (cancelled) return;
+        setNotifications(data.notifications || []);
+        setUnreadCount(Number(data.unreadCount || 0));
       })
-      .catch(() => setNotifLoading(false));
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setNotifLoading(false); });
+    return () => { cancelled = true; };
   }, [notifOpen, user]);
 
   // Закрытие выпадашек по клику вне
@@ -140,9 +159,7 @@ export default function Header() {
     setSearch("");
   }
 
-  const activeOrders = orders.filter(
-    (o) => !["shipped", "cancelled"].includes(o.status)
-  );
+  const recentNotifications = notifications.slice(0, 5);
 
   return (
     <header className="header">
@@ -248,8 +265,8 @@ export default function Header() {
             onClick={() => setNotifOpen(!notifOpen)}
           >
             <Bell size={20} />
-            {user && activeOrders.length > 0 && (
-              <span className="cart-count">{activeOrders.length}</span>
+            {user && unreadCount > 0 && (
+              <span className="cart-count">{unreadCount > 99 ? "99+" : unreadCount}</span>
             )}
           </button>
 
@@ -279,36 +296,36 @@ export default function Header() {
                 </div>
               ) : notifLoading ? (
                 <div className="notif-empty">Загрузка...</div>
-              ) : orders.length === 0 ? (
+              ) : recentNotifications.length === 0 ? (
                 <div className="notif-empty">
                   <p>Пока нет уведомлений</p>
                 </div>
               ) : (
                 <div className="notif-list">
-                  {orders.slice(0, 5).map((o) => (
+                  {recentNotifications.map((item) => (
                     <Link
-                      key={o.id}
-                      href={`/orders/${o.id}`}
-                      className="notif-item"
+                      key={item.id}
+                      href={`/orders/${item.order_id}`}
+                      className={item.is_read ? "notif-item" : "notif-item notif-item-unread"}
                       onClick={() => setNotifOpen(false)}
                     >
                       <div className="notif-item-head">
-                        <b>Заказ №{String(o.id).padStart(5, "0")}</b>
+                        <b>{item.title}</b>
                         <span className="notif-item-date">
-                          {new Date(o.created_at).toLocaleDateString("ru-RU")}
+                          {new Date(item.created_at.replace(" ", "T") + (item.created_at.includes("Z") ? "" : "Z")).toLocaleDateString("ru-RU")}
                         </span>
                       </div>
                       <div className="notif-item-status">
-                        {STATUS_LABELS[o.status] || o.status}
+                        Заказ №{String(item.order_id).padStart(5, "0")} · {item.message}
                       </div>
                     </Link>
                   ))}
                   <Link
-                    href="/orders"
+                    href="/notifications"
                     className="notif-all"
                     onClick={() => setNotifOpen(false)}
                   >
-                    Все заказы →
+                    Все уведомления →
                   </Link>
                 </div>
               )}

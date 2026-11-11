@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 const MENU = [
   { href: "/profile", label: "Обзор" },
   { href: "/orders", label: "Мои заказы" },
+  { href: "/notifications", label: "Уведомления" },
   { href: "/documents", label: "Документы" },
   { href: "/profile/requisites", label: "Мои реквизиты" },
   { href: "/profile/settings", label: "Настройки" },
