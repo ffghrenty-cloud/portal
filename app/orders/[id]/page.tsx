@@ -67,7 +67,6 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   packing: { label: "Упаковка", className: "pending" },
   partially_shipped: { label: "Отгружена часть заказа", className: "pending" },
   shipped: { label: "Отгружен", className: "shipped" },
-  partially_shipped: { label: "Частично отгружено", className: "pending" },
   delivered: { label: "Доставлен", className: "shipped" },
   cancelled: { label: "Отменён", className: "draft" },
 };
