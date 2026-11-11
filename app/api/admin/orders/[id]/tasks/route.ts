@@ -10,7 +10,7 @@ const STAGES: Record<string, string> = {
 async function currentUser() {
   const id = (await cookies()).get("userId")?.value;
   if (!id) return null;
-  return new Promise<any>((resolve) => db.get("SELECT id, role FROM users WHERE id = ?", [id], (err, row) => resolve(err ? null : row || null)));
+  return new Promise<any>((resolve) => db.get("SELECT id, email, role FROM users WHERE id = ?", [id], (err, row) => resolve(err ? null : row || null)));
 }
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
