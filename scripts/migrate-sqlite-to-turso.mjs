@@ -19,7 +19,9 @@ const target = createClient({ url, authToken });
 
 async function all(sql, params = []) {
   const result = await source.execute({ sql, args: params });
-  return result.rows;
+  return result.rows.map((row) =>
+    Object.fromEntries(result.columns.map((column, index) => [column, row[index]]))
+  );
 }
 function quote(identifier) {
   return '"' + identifier.replace(/"/g, '""') + '"';
@@ -27,10 +29,10 @@ function quote(identifier) {
 
 async function main() {
   const existing = await target.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1"
+    "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
   );
   if (existing.rows.length) {
-    throw new Error(`База Turso не пустая (найдена таблица ${existing.rows[0].name}). Перенос остановлен без изменения данных.`);
+    throw new Error(`База Turso не пустая (найден объект ${existing.rows[0].type}: ${existing.rows[0].name}). Перенос остановлен без изменения данных.`);
   }
 
   const objects = await all(
@@ -43,9 +45,13 @@ async function main() {
   console.log(`Таблиц для переноса: ${tables.length}`);
   console.log("Проверка Turso: база пустая.");
 
+  // Вся миграция выполняется одной транзакцией. При любой ошибке Turso
+  // откатит DDL, данные, индексы и счётчики ID целиком.
+  const tx = await target.transaction("write");
+  try {
   // Сначала создаём все таблицы. Данные переносим в порядке зависимостей
   // внешних ключей: родительские таблицы должны быть заполнены раньше дочерних.
-  for (const table of tables) await target.execute(table.sql);
+  for (const table of tables) await tx.execute(table.sql);
 
   const tableNames = new Set(tables.map((table) => table.name));
   const dependencies = new Map();
@@ -86,7 +92,7 @@ async function main() {
           sql: insertSql,
           args: columns.map((column) => row[column] ?? null),
         }));
-        await target.batch(batch, "write");
+        for (const statement of batch) await tx.execute(statement);
       }
     }
     totalRows += rows.length;
@@ -98,12 +104,12 @@ async function main() {
   try {
     const sequences = await all("SELECT name, seq FROM sqlite_sequence");
     for (const sequence of sequences) {
-      const update = await target.execute({
+      const update = await tx.execute({
         sql: "UPDATE sqlite_sequence SET seq = CASE WHEN seq < ? THEN ? ELSE seq END WHERE name = ?",
         args: [sequence.seq, sequence.seq, sequence.name],
       });
       if (Number(update.rowsAffected) === 0) {
-        await target.execute({
+        await tx.execute({
           sql: "INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)",
           args: [sequence.name, sequence.seq],
         });
@@ -114,16 +120,16 @@ async function main() {
   }
 
   for (const object of objects.filter((item) => item.type !== "table")) {
-    await target.execute(object.sql);
+    await tx.execute(object.sql);
   }
 
-  const foreignKeyErrors = await target.execute("PRAGMA foreign_key_check");
+  const foreignKeyErrors = await tx.execute("PRAGMA foreign_key_check");
   if (foreignKeyErrors.rows.length) {
     throw new Error(`Проверка внешних ключей выявила ошибки: ${JSON.stringify(foreignKeyErrors.rows.slice(0, 10))}`);
   }
 
   for (const table of tables) {
-    const actual = await target.execute(`SELECT COUNT(*) AS count FROM ${quote(table.name)}`);
+    const actual = await tx.execute(`SELECT COUNT(*) AS count FROM ${quote(table.name)}`);
     const count = Number(actual.rows[0]?.count ?? 0);
     const expected = expectedCounts.get(table.name);
     if (count !== expected) {
@@ -131,8 +137,13 @@ async function main() {
     }
   }
 
+  await tx.commit();
   console.log(`Перенос завершён: ${totalRows} строк в ${tables.length} таблицах.`);
   console.log("Количество строк сверено, проверка внешних ключей пройдена.");
+  } catch (error) {
+    try { await tx.rollback(); } catch {}
+    throw error;
+  }
 }
 
 main()
