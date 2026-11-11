@@ -28,11 +28,19 @@ function quote(identifier) {
 }
 
 async function main() {
-  const existing = await target.execute(
-    "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
+  const existingObjects = await target.execute(
+    "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
   );
-  if (existing.rows.length) {
-    throw new Error(`База Turso не пустая (найден объект ${existing.rows[0].type}: ${existing.rows[0].name}). Перенос остановлен без изменения данных.`);
+  const existingTables = new Set(
+    existingObjects.rows.filter((row) => row.type === "table").map((row) => String(row.name))
+  );
+  // Допускаем заранее созданную приложением схему, но только если все таблицы пусты.
+  // Любые существующие записи блокируют перенос, чтобы исключить перезапись данных.
+  for (const name of existingTables) {
+    const count = await target.execute(`SELECT COUNT(*) AS count FROM ${quote(String(name))}`);
+    if (Number(count.rows[0]?.count ?? 0) > 0) {
+      throw new Error(`Таблица Turso "${name}" уже содержит данные. Перенос остановлен без изменений.`);
+    }
   }
 
   const objects = await all(
@@ -43,7 +51,9 @@ async function main() {
 
   console.log(`Источник: ${sourcePath}`);
   console.log(`Таблиц для переноса: ${tables.length}`);
-  console.log("Проверка Turso: база пустая.");
+  console.log(existingObjects.rows.length
+    ? "Проверка Turso: схема уже создана, все таблицы пустые."
+    : "Проверка Turso: база пустая.");
 
   // Вся миграция выполняется одной транзакцией. При любой ошибке Turso
   // откатит DDL, данные, индексы и счётчики ID целиком.
@@ -51,7 +61,18 @@ async function main() {
   try {
   // Сначала создаём все таблицы. Данные переносим в порядке зависимостей
   // внешних ключей: родительские таблицы должны быть заполнены раньше дочерних.
-  for (const table of tables) await tx.execute(table.sql);
+  for (const table of tables) {
+    if (!existingTables.has(table.name)) await tx.execute(table.sql);
+    else {
+      const targetColumns = await tx.execute(`PRAGMA table_info(${quote(table.name)})`);
+      const available = new Set(targetColumns.rows.map((row) => String(row.name)));
+      const sourceColumns = await all(`PRAGMA table_info(${quote(table.name)})`);
+      const missing = sourceColumns.map((column) => column.name).filter((column) => !available.has(column));
+      if (missing.length) {
+        throw new Error(`В таблице Turso "${table.name}" отсутствуют колонки: ${missing.join(", ")}. Перенос остановлен.`);
+      }
+    }
+  }
 
   const tableNames = new Set(tables.map((table) => table.name));
   const dependencies = new Map();
@@ -119,8 +140,9 @@ async function main() {
     if (!String(error?.message || error).includes("no such table")) throw error;
   }
 
+  const existingObjectNames = new Set(existingObjects.rows.map((row) => String(row.name)));
   for (const object of objects.filter((item) => item.type !== "table")) {
-    await tx.execute(object.sql);
+    if (!existingObjectNames.has(object.name)) await tx.execute(object.sql);
   }
 
   const foreignKeyErrors = await tx.execute("PRAGMA foreign_key_check");
