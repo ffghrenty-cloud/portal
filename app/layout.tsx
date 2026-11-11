@@ -1,15 +1,7 @@
 import Assistant from "./components/Assistant";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "./components/Header";
-
-const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
   title: "ОршаЛён — оптовый портал",
@@ -21,7 +13,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className={inter.variable} data-scroll-behavior="smooth">
+    <html lang="ru" data-scroll-behavior="smooth">
       <body>
         <Header />
         <main>{children}</main>
