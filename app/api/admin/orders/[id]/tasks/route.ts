@@ -17,11 +17,22 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const actor = await currentUser();
   if (!actor || !["admin", "senior_manager", "manager"].includes(actor.role)) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
+  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
+  const managerScope = actor.role === "manager"
+    ? "AND (o.manager = (SELECT email FROM users WHERE id = ?) OR EXISTS (SELECT 1 FROM order_stage_tasks own WHERE own.order_id = o.id AND own.stage = 'manager_review' AND own.assigned_user_id = ? AND own.status NOT IN ('completed', 'cancelled')))"
+    : "";
+  const queryParams = actor.role === "manager" ? [id, actor.id, actor.id] : [id];
   return new Promise<NextResponse>((resolve) => db.all(
     `SELECT t.*, u.email AS assigned_email, a.email AS assigned_by_email
-     FROM order_stage_tasks t LEFT JOIN users u ON u.id = t.assigned_user_id
-     LEFT JOIN users a ON a.id = t.assigned_by_user_id WHERE t.order_id = ? ORDER BY t.created_at ASC`,
-    [id], (err, tasks) => resolve(err ? NextResponse.json({ error: err.message }, { status: 500 }) : NextResponse.json({ tasks }))
+     FROM order_stage_tasks t
+     LEFT JOIN users u ON u.id = t.assigned_user_id
+     LEFT JOIN users a ON a.id = t.assigned_by_user_id
+     JOIN orders o ON o.id = t.order_id
+     WHERE t.order_id = ? ${managerScope}
+     ORDER BY t.created_at ASC`,
+    queryParams, (err, tasks) => resolve(err
+      ? NextResponse.json({ error: "Не удалось загрузить задания заказа" }, { status: 500 })
+      : NextResponse.json({ tasks }))
   ));
 }
 
@@ -29,6 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const actor = await currentUser();
   if (!actor || !["admin", "senior_manager", "manager"].includes(actor.role)) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
+  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
   try {
     const body = await request.json();
     const stage = String(body.stage || "");
@@ -36,8 +48,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const note = String(body.note || "").trim().slice(0, 1000) || null;
     const requiredRole = STAGES[stage];
     if (!requiredRole || !Number.isInteger(assignedUserId) || assignedUserId < 1) return NextResponse.json({ error: "Укажите корректный этап и сотрудника" }, { status: 400 });
-    return new Promise<NextResponse>((resolve) => db.get("SELECT id FROM orders WHERE id = ?", [id], (orderErr, order) => {
+    return new Promise<NextResponse>((resolve) => db.get(
+      `SELECT o.id, o.manager,
+              EXISTS (SELECT 1 FROM order_stage_tasks own
+                      WHERE own.order_id = o.id AND own.stage = 'manager_review'
+                        AND own.assigned_user_id = ? AND own.status NOT IN ('completed', 'cancelled')) AS assigned_to_actor
+       FROM orders o WHERE o.id = ?`,
+      actor.role === "manager" ? [actor.id, id] : [null, id],
+      (orderErr, order: any) => {
       if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
+      if (actor.role === "manager" && order.manager !== actor.email && !Number(order.assigned_to_actor)) {
+        return resolve(NextResponse.json({ error: "Менеджер может изменять задания только назначенных ему заказов" }, { status: 403 }));
+      }
+      if (actor.role === "manager" && stage === "manager_review") {
+        return resolve(NextResponse.json({ error: "Переназначить менеджера может старший менеджер или администратор" }, { status: 403 }));
+      }
       db.get("SELECT id, email, role FROM users WHERE id = ?", [assignedUserId], (userErr, user: any) => {
         if (userErr || !user || (stage === "manager_review" ? !["manager", "senior_manager"].includes(user.role) : user.role !== requiredRole)) return resolve(NextResponse.json({ error: "Выбранный сотрудник не подходит для этого этапа" }, { status: 400 }));
         db.get(
