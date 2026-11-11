@@ -1,139 +1,201 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
+import { createClient, type Client, type Transaction } from "@libsql/client";
+import { AsyncLocalStorage } from "node:async_hooks";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const dbPath = path.join(process.cwd(), 'data.db');
+type SqlCallback = (error: Error | null, row?: any) => void;
+type RunCallback = (this: { lastID: number; changes: number }, error: Error | null) => void;
+type DbContext = { transaction?: Transaction; release?: () => void };
 
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Ошибка подключения к БД:', err);
-  } else {
-    console.log('✅ Подключено к SQLite');
+let client: Client | undefined;
+
+function getClient(): Client {
+  if (client) return client;
+
+  const databaseUrl =
+    process.env.TURSO_DATABASE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? ""
+      : pathToFileURL(path.join(process.cwd(), "data.db")).href);
+
+  if (!databaseUrl) {
+    throw new Error("Не задан TURSO_DATABASE_URL. Добавьте URL базы Turso в переменные окружения Vercel.");
   }
-});
 
-// Безопасная инициализация новых таблиц: CREATE IF NOT EXISTS не удаляет
-// существующие данные и не пересоздаёт локальную базу.
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS order_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      actor_user_id INTEGER,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (actor_user_id) REFERENCES users(id)
-    )
-  `, (error) => { if (error) console.error('Ошибка инициализации истории заказов:', error.message); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS order_notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      message TEXT NOT NULL,
-      is_read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `, (error) => { if (error) console.error('Ошибка инициализации уведомлений:', error.message); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS admin_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      text TEXT NOT NULL,
-      is_from_admin INTEGER NOT NULL DEFAULT 0,
-      is_read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `, (error) => { if (error) console.error('Ошибка инициализации переписки:', error.message); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS order_reviews (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL UNIQUE,
-      user_id INTEGER NOT NULL,
-      rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-      comment TEXT,
-      admin_reply TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      replied_at TEXT,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `, (error) => { if (error) console.error('Ошибка инициализации отзывов:', error.message); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS order_stage_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id INTEGER NOT NULL,
-      stage TEXT NOT NULL,
-      assigned_user_id INTEGER NOT NULL,
-      assigned_by_user_id INTEGER,
-      status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
-      note TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      completed_at TEXT,
-      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (assigned_user_id) REFERENCES users(id),
-      FOREIGN KEY (assigned_by_user_id) REFERENCES users(id)
-    )
-  `, (schemaError) => {
-    if (schemaError) {
-      console.error('Ошибка инициализации очереди заданий:', schemaError.message);
-    } else {
-      db.run(
-        'CREATE INDEX IF NOT EXISTS idx_order_stage_tasks_assignee_status ON order_stage_tasks(assigned_user_id, status, stage)',
-        (indexError) => {
-          if (indexError) {
-            console.error('Ошибка индекса очереди заданий:', indexError.message);
-            return;
-          }
-          console.log('✅ Схема очереди заданий проверена');
-
-          // Подхватываем старые заказы, созданные до появления очереди заданий.
-          // Повторный запуск безопасен: NOT EXISTS не создаёт дубликаты.
-          db.run(`
-            INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, status, note)
-            SELECT o.id, 'stock_check',
-                   (SELECT u.id FROM users u WHERE u.role = 'order_receiver' ORDER BY u.created_at ASC, u.id ASC LIMIT 1),
-                   'pending', 'Назначено автоматически при обновлении системы'
-            FROM orders o
-            WHERE o.status = 'pending'
-              AND EXISTS (SELECT 1 FROM users WHERE role = 'order_receiver')
-              AND NOT EXISTS (
-                SELECT 1 FROM order_stage_tasks t
-                WHERE t.order_id = o.id AND t.stage = 'stock_check' AND t.status != 'cancelled'
-              )
-          `, (seedError) => {
-            if (seedError) console.error('Ошибка восстановления очереди приёмщика:', seedError.message);
-            db.run(`
-              INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, status, note)
-              SELECT o.id, 'manager_review',
-                     (SELECT u.id FROM users u WHERE u.role IN ('manager', 'senior_manager') ORDER BY u.created_at ASC, u.id ASC LIMIT 1),
-                     'pending', 'Назначено автоматически при обновлении системы'
-              FROM orders o
-              WHERE o.status = 'stock_checked'
-                AND EXISTS (SELECT 1 FROM users WHERE role IN ('manager', 'senior_manager'))
-                AND NOT EXISTS (
-                  SELECT 1 FROM order_stage_tasks t
-                  WHERE t.order_id = o.id AND t.stage = 'manager_review' AND t.status != 'cancelled'
-                )
-            `, (managerSeedError) => {
-              if (managerSeedError) console.error('Ошибка восстановления очереди менеджера:', managerSeedError.message);
-            });
-          });
-        }
-      );
-    }
+  client = createClient({
+    url: databaseUrl,
+    authToken: process.env.TURSO_AUTH_TOKEN,
   });
-});
+  return client;
+}
+
+const contexts = new AsyncLocalStorage<DbContext>();
+
+// Блокировка защищает транзакции: запросы из других HTTP-запросов не попадут
+// внутрь уже открытой транзакции.
+let lockTail: Promise<void> = Promise.resolve();
+
+async function acquireLock(): Promise<() => void> {
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => { release = resolve; });
+  const previous = lockTail;
+  lockTail = previous.then(() => next);
+  await previous;
+  return release;
+}
+
+function normalizeArgs(params?: any[] | Record<string, any>): any[] | Record<string, any> {
+  if (params === undefined) return [];
+  if (Array.isArray(params)) return params.map((value) => value === undefined ? null : value);
+  return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, value === undefined ? null : value]));
+}
+
+async function execute(sql: string, params?: any[] | Record<string, any>) {
+  const context = contexts.getStore();
+  if (context?.transaction) {
+    return context.transaction.execute({ sql, args: normalizeArgs(params) as any });
+  }
+
+  const release = await acquireLock();
+  try {
+    return await getClient().execute({ sql, args: normalizeArgs(params) as any });
+  } finally {
+    release();
+  }
+}
+
+function parseRunArgs(paramsOrCallback?: any[] | RunCallback, callback?: RunCallback) {
+  if (typeof paramsOrCallback === "function") return { params: [], callback: paramsOrCallback };
+  return { params: paramsOrCallback || [], callback };
+}
+
+const db = {
+  get(sql: string, paramsOrCallback?: any[] | SqlCallback, callback?: SqlCallback) {
+    const params = typeof paramsOrCallback === "function" ? [] : paramsOrCallback || [];
+    const done = typeof paramsOrCallback === "function" ? paramsOrCallback : callback;
+    void execute(sql, params)
+      .then((result) => done?.(null, result.rows[0] ?? undefined))
+      .catch((error) => done?.(error as Error));
+    return db;
+  },
+
+  all(sql: string, paramsOrCallback?: any[] | SqlCallback, callback?: SqlCallback) {
+    const params = typeof paramsOrCallback === "function" ? [] : paramsOrCallback || [];
+    const done = typeof paramsOrCallback === "function" ? paramsOrCallback : callback;
+    void execute(sql, params)
+      .then((result) => done?.(null, result.rows))
+      .catch((error) => done?.(error as Error));
+    return db;
+  },
+
+  run(sql: string, paramsOrCallback?: any[] | RunCallback, callback?: RunCallback) {
+    const parsed = parseRunArgs(paramsOrCallback, callback);
+    const normalizedSql = sql.trim().replace(/;$/, "").toUpperCase();
+    const context = contexts.getStore();
+
+    const operation = async () => {
+      if (normalizedSql === "BEGIN" || normalizedSql === "BEGIN IMMEDIATE" || normalizedSql === "BEGIN TRANSACTION") {
+        if (!context) throw new Error("Транзакцию необходимо открывать внутри db.serialize()");
+        if (context.transaction) throw new Error("Вложенные транзакции не поддерживаются");
+        context.release = await acquireLock();
+        try {
+          context.transaction = await getClient().transaction("write");
+          return { lastInsertRowid: 0, rowsAffected: 0 };
+        } catch (error) {
+          context.release();
+          context.release = undefined;
+          throw error;
+        }
+      }
+
+      if (normalizedSql === "COMMIT" || normalizedSql === "END" || normalizedSql === "COMMIT TRANSACTION") {
+        if (!context?.transaction) throw new Error("Нет активной транзакции для COMMIT");
+        try {
+          await context.transaction.commit();
+          return { lastInsertRowid: 0, rowsAffected: 0 };
+        } finally {
+          context.transaction = undefined;
+          context.release?.();
+          context.release = undefined;
+        }
+      }
+
+      if (normalizedSql === "ROLLBACK" || normalizedSql === "ROLLBACK TRANSACTION") {
+        if (!context?.transaction) return { lastInsertRowid: 0, rowsAffected: 0 };
+        try {
+          await context.transaction.rollback();
+          return { lastInsertRowid: 0, rowsAffected: 0 };
+        } finally {
+          context.transaction = undefined;
+          context.release?.();
+          context.release = undefined;
+        }
+      }
+
+      return execute(sql, parsed.params);
+    };
+
+    void operation()
+      .then((result: any) => {
+        const thisValue = {
+          lastID: Number(result.lastInsertRowid ?? 0),
+          changes: Number(result.rowsAffected ?? 0),
+        };
+        parsed.callback?.call(thisValue, null);
+      })
+      .catch((error) => parsed.callback?.call({ lastID: 0, changes: 0 }, error as Error));
+    return db;
+  },
+
+  exec(sql: string, callback?: (error: Error | null) => void) {
+    const context = contexts.getStore();
+    const operation = context?.transaction
+      ? context.transaction.executeMultiple(sql)
+      : (async () => {
+          const release = await acquireLock();
+          try {
+            await getClient().executeMultiple(sql);
+          } finally {
+            release();
+          }
+        })();
+    void operation.then(() => callback?.(null)).catch((error) => callback?.(error as Error));
+    return db;
+  },
+
+  prepare(sql: string) {
+    return {
+      run(paramsOrCallback?: any[] | RunCallback, callback?: RunCallback) {
+        const parsed = parseRunArgs(paramsOrCallback, callback);
+        void execute(sql, parsed.params)
+          .then((result: any) => parsed.callback?.call({
+            lastID: Number(result.lastInsertRowid ?? 0),
+            changes: Number(result.rowsAffected ?? 0),
+          }, null))
+          .catch((error) => parsed.callback?.call({ lastID: 0, changes: 0 }, error as Error));
+        return this;
+      },
+      finalize(callback?: (error: Error | null) => void) {
+        callback?.(null);
+        return this;
+      },
+    };
+  },
+
+  serialize(callback: () => void) {
+    const context: DbContext = {};
+    contexts.run(context, callback);
+    return db;
+  },
+
+  close(callback?: (error: Error | null) => void) {
+    try {
+      getClient().close();
+      callback?.(null);
+    } catch (error) {
+      callback?.(error as Error);
+    }
+  },
+};
 
 export default db;
