@@ -11,7 +11,7 @@ const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string
   quality_check: { role: "quality", orderStatus: "quality_check", title: "Контроль качества пройден", allowedFrom: ["picking"] },
   packing: { role: "packer", orderStatus: "packing", title: "Заказ упакован", allowedFrom: ["quality_check"] },
   shipment_preparation: { role: "shipment_preparer", orderStatus: "ready", title: "Заказ загружен и готов к отправке", allowedFrom: ["packing"] },
-  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["ready"] },
+  shipping: { role: "logistics", orderStatus: "shipped", title: "Заказ передан в доставку", allowedFrom: ["ready", "partially_shipped"] },
   delivery: { role: "logistics", orderStatus: "delivered", title: "Заказ доставлен", allowedFrom: ["shipped"] },
 };
 
@@ -31,13 +31,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (err || !task) return resolve(NextResponse.json({ error: "Задание не найдено" }, { status: 404 }));
       if (task.assigned_user_id !== Number(userId) && task.actor_role !== "admin") return resolve(NextResponse.json({ error: "Это задание назначено другому сотруднику" }, { status: 403 }));
       if (task.stage === "stock_check") return resolve(NextResponse.json({ error: "Для проверки наличия используйте отдельное рабочее место приёмщика" }, { status: 400 }));
+      if (task.stage === "shipping" && nextStatus === "completed") return resolve(NextResponse.json({ error: "Завершить логистический этап можно после оформления всех отправлений через форму отгрузки" }, { status: 409 }));
       const rule = STAGE_RULES[task.stage];
       if (!rule || (task.actor_role !== "admin" && !(Array.isArray(rule.role) ? rule.role.includes(task.actor_role) : task.actor_role === rule.role) && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
 
       db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
         if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
-        if (task.stage === "shipping" && order.status === "partially_shipped") return resolve(NextResponse.json({ error: "Сначала оформите отгрузку всех оставшихся позиций заказа" }, { status: 409 }));
         if (!rule.allowedFrom.includes(order.status)) {
           return resolve(NextResponse.json({ error: "Этот этап пока нельзя выполнить: сначала должен завершиться предыдущий этап заказа" }, { status: 409 }));
         }
