@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import ProfileLayout from "@/app/components/ProfileLayout";
 import { Star, MessageSquare, CheckCircle2, Clock3, AlertCircle } from "lucide-react";
 
