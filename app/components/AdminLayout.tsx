@@ -13,6 +13,7 @@ const MENU = [
   { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3 },
   { href: "/admin/reviews", label: "Отзывы", icon: Star },
   { href: "/admin/staff", label: "Сотрудники", icon: UserCog },
+  { href: "/admin/managers", label: "Распределение менеджерам", icon: ClipboardList },
   { href: "/staff/tasks", label: "Рабочие задания", icon: ClipboardList },
   { href: "/admin/messages", label: "Сообщения", icon: MessageCircle },
 ];
