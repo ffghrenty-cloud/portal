@@ -33,16 +33,6 @@ type Notification = {
   created_at: string;
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Черновик",
-  pending: "На согласовании",
-  confirmed: "Подтверждён",
-  production: "В производстве",
-  ready: "Готов к отгрузке",
-  shipped: "Отгружен",
-  cancelled: "Отменён",
-};
-
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
