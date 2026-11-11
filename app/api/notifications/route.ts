@@ -30,10 +30,20 @@ export async function GET() {
           resolve(NextResponse.json({ error: "Не удалось загрузить уведомления" }, { status: 500 }));
           return;
         }
-        resolve(NextResponse.json({
-          notifications: rows,
-          unreadCount: rows.filter((item) => !item.is_read).length,
-        }, { headers: { "Cache-Control": "no-store" } }));
+        db.get(
+          "SELECT COUNT(*) AS count FROM order_notifications WHERE user_id = ? AND is_read = 0",
+          [userId],
+          (countError, countRow: any) => {
+            if (countError) {
+              resolve(NextResponse.json({ error: "Не удалось посчитать непрочитанные уведомления" }, { status: 500 }));
+              return;
+            }
+            resolve(NextResponse.json({
+              notifications: rows,
+              unreadCount: Number(countRow?.count || 0),
+            }, { headers: { "Cache-Control": "no-store" } }));
+          }
+        );
       }
     );
   });
