@@ -45,12 +45,37 @@ export async function POST(request: Request, { params }: Context) {
     (orderError, order: any) => {
       if (orderError) return resolve(NextResponse.json({ error: "Не удалось проверить покупку" }, { status: 500 }));
       if (!order) return resolve(NextResponse.json({ error: "Оставить отзыв можно только после получения этого товара" }, { status: 403 }));
-      db.run(
-        "INSERT INTO product_reviews (product_id, user_id, order_id, rating, comment, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-        [id, userId, order.id, rating, comment],
-        function (insertError) {
-          if (insertError) return resolve(NextResponse.json({ error: insertError.message.includes("UNIQUE") ? "Вы уже оставляли отзыв на этот товар" : "Не удалось сохранить отзыв", }, { status: insertError.message.includes("UNIQUE") ? 409 : 500 }));
-          resolve(NextResponse.json({ ok: true, reviewId: this.lastID, status: "pending" }, { status: 201 }));
+      db.get(
+        "SELECT id, status FROM product_reviews WHERE product_id = ? AND user_id = ?",
+        [id, userId],
+        (reviewError, existingReview: any) => {
+          if (reviewError) return resolve(NextResponse.json({ error: "Не удалось проверить существующий отзыв" }, { status: 500 }));
+
+          if (existingReview && existingReview.status !== "rejected") {
+            return resolve(NextResponse.json({ error: existingReview.status === "approved" ? "Отзыв уже опубликован. Повторная отправка не требуется." : "Отзыв уже находится на модерации." }, { status: 409 }));
+          }
+
+          if (existingReview) {
+            db.run(
+              "UPDATE product_reviews SET order_id = ?, rating = ?, comment = ?, status = 'pending', admin_reply = NULL, replied_at = NULL, created_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ? AND status = 'rejected'",
+              [order.id, rating, comment, existingReview.id, userId],
+              function (updateError) {
+                if (updateError) return resolve(NextResponse.json({ error: "Не удалось обновить отклонённый отзыв" }, { status: 500 }));
+                if (this.changes === 0) return resolve(NextResponse.json({ error: "Отзыв уже изменён. Обновите страницу." }, { status: 409 }));
+                resolve(NextResponse.json({ ok: true, reviewId: existingReview.id, status: "pending", updated: true }));
+              }
+            );
+            return;
+          }
+
+          db.run(
+            "INSERT INTO product_reviews (product_id, user_id, order_id, rating, comment, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+            [id, userId, order.id, rating, comment],
+            function (insertError) {
+              if (insertError) return resolve(NextResponse.json({ error: insertError.message.includes("UNIQUE") ? "Вы уже оставляли отзыв на этот товар" : "Не удалось сохранить отзыв" }, { status: insertError.message.includes("UNIQUE") ? 409 : 500 }));
+              resolve(NextResponse.json({ ok: true, reviewId: this.lastID, status: "pending" }, { status: 201 }));
+            }
+          );
         }
       );
     }
