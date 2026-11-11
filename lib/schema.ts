@@ -157,7 +157,10 @@ export function initDatabase(): Promise<void> {
           "ALTER TABLE orders ADD COLUMN stock_checked_by INTEGER",
           "ALTER TABLE orders ADD COLUMN stock_checked_at DATETIME",
           "ALTER TABLE order_items ADD COLUMN available_quantity INTEGER",
-          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT"
+          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT",
+          "CREATE TABLE IF NOT EXISTS product_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, user_id INTEGER NOT NULL, order_id INTEGER NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT, status TEXT NOT NULL DEFAULT 'pending', admin_reply TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, replied_at DATETIME, FOREIGN KEY (product_id) REFERENCES products(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (order_id) REFERENCES orders(id), UNIQUE (product_id, user_id))",
+          "CREATE INDEX IF NOT EXISTS idx_product_reviews_product_status ON product_reviews(product_id, status, created_at)",
+          "CREATE INDEX IF NOT EXISTS idx_product_reviews_user ON product_reviews(user_id, created_at)"
         ];
         const runMigration = (index: number) => {
           if (index >= migrations.length) {
