@@ -135,7 +135,6 @@ export async function POST(request: Request) {
               createOrder(coupon);
             });
           });
-          );
         });
       }
     ));
