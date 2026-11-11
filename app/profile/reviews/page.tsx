@@ -69,7 +69,7 @@ export default function MyReviewsPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Не удалось отправить отзыв");
-      setNotice((prev) => ({ ...prev, [productId]: "Отзыв отправлен на модерацию." }));
+      setNotice((prev) => ({ ...prev, [productId]: data.updated ? "Исправленный отзыв повторно отправлен на модерацию." : "Отзыв отправлен на модерацию." }));
       await loadProducts();
       setActiveTab("sent");
     } catch (err) {
@@ -157,7 +157,23 @@ export default function MyReviewsPage() {
                       <div style={{ marginTop: 7, color: "#b17b32" }}>{"★".repeat(item.rating || 0)}{"☆".repeat(5 - (item.rating || 0))}</div>
                       <p style={{ margin: "7px 0 0", whiteSpace: "pre-wrap", fontSize: 13 }}>{item.comment}</p>
                       {item.admin_reply && <div style={{ marginTop: 10, padding: 10, background: "#f6f2ec", borderRadius: 7, fontSize: 13 }}><b>Ответ магазина:</b> {item.admin_reply}</div>}
-                      {item.review_status === "rejected" && <small style={{ display: "block", marginTop: 8, color: "#756b60" }}>Если вы считаете, что отзыв отклонён ошибочно, свяжитесь с администрацией.</small>}
+                      {item.review_status === "rejected" && (
+                        <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: "#fff8ed", border: "1px solid #ead7b8" }}>
+                          <p style={{ margin: "0 0 9px", color: "#76552f", fontSize: 13 }}>Отзыв не прошёл модерацию. Исправьте текст или оценку и отправьте его повторно.</p>
+                          <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Изменить оценку</label>
+                          <div style={{ display: "flex", gap: 5 }}>
+                            {[1,2,3,4,5].map((value) => {
+                              const selected = (ratings[item.product_id] ?? item.rating ?? 5) >= value;
+                              return <button key={value} type="button" aria-label={`${value} звёзд`} onClick={() => setRatings((prev) => ({ ...prev, [item.product_id]: value }))} style={{ border: 0, background: "transparent", color: selected ? "#b17b32" : "#d8d0c6", padding: 2, cursor: "pointer" }}><Star size={22} fill={selected ? "currentColor" : "none"} /></button>;
+                            })}
+                          </div>
+                          <textarea value={comments[item.product_id] ?? item.comment ?? ""} onChange={(event) => setComments((prev) => ({ ...prev, [item.product_id]: event.target.value.slice(0, 2000) }))} rows={3} maxLength={2000} aria-label="Исправленный текст отзыва" style={{ boxSizing: "border-box", width: "100%", marginTop: 9, padding: 10, border: "1px solid #d8d0c6", borderRadius: 7, resize: "vertical", font: "inherit", fontSize: 13 }} />
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                            <button type="button" className="add-btn" disabled={sending === item.product_id || (comments[item.product_id] ?? item.comment ?? "").trim().length < 5} onClick={() => void submitReview(item.product_id)}>{sending === item.product_id ? "Отправка..." : "Исправить и отправить повторно"}</button>
+                          </div>
+                          {notice[item.product_id] && <p role="status" style={{ color: notice[item.product_id].includes("отправлен") ? "#39734a" : "#b42318", fontSize: 12, margin: "7px 0 0" }}>{notice[item.product_id]}</p>}
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
