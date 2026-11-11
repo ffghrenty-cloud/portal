@@ -17,7 +17,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const actor = await currentUser();
   if (!actor || !["admin", "senior_manager", "manager"].includes(actor.role)) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
-  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
+  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
   const managerScope = actor.role === "manager"
     ? "AND (o.manager = (SELECT email FROM users WHERE id = ?) OR EXISTS (SELECT 1 FROM order_stage_tasks own WHERE own.order_id = o.id AND own.stage = 'manager_review' AND own.assigned_user_id = ? AND own.status NOT IN ('completed', 'cancelled')))"
     : "";
@@ -40,7 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const actor = await currentUser();
   if (!actor || !["admin", "senior_manager", "manager"].includes(actor.role)) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
-  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
+  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
   try {
     const body = await request.json();
     const stage = String(body.stage || "");
