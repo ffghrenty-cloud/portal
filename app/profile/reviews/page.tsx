@@ -53,8 +53,9 @@ export default function MyReviewsPage() {
   useEffect(() => { void loadProducts(); }, []);
 
   async function submitReview(productId: number) {
-    const comment = (comments[productId] || "").trim();
-    const rating = ratings[productId] || 5;
+    const currentProduct = products.find((item) => item.product_id === productId);
+    const comment = (comments[productId] ?? (currentProduct?.review_status === "rejected" ? currentProduct.comment || "" : "")).trim();
+    const rating = ratings[productId] ?? (currentProduct?.review_status === "rejected" ? currentProduct.rating ?? 5 : 5);
     if (comment.length < 5) {
       setNotice((prev) => ({ ...prev, [productId]: "Напишите отзыв минимум из 5 символов." }));
       return;
