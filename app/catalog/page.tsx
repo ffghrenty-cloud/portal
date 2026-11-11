@@ -9,6 +9,7 @@ import { ArrowRight, Heart, Search, X } from "lucide-react";
 import { Product } from "@/lib/Product";
 import { ProductFilter, SortOption } from "@/lib/ProductFilter";
 import { ProductsApiClient } from "@/lib/ProductsApiClient";
+import ProductReviews from "@/app/components/ProductReviews";
 
 type NoticeType = "cart" | "fav" | "fav-remove" | "info";
 
@@ -326,6 +327,7 @@ function CatalogContent() {
                       </button>
                     </div>
                     <small>{product.description}</small>
+                    <ProductReviews productId={Number(product.id)} />
                   </div>
                 </article>
               ))}
