@@ -50,7 +50,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
             db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (statusErr) => {
               if (statusErr) return resolve(NextResponse.json({ error: statusErr.message }, { status: 500 }));
-              db.run(
+
+              const recordEvent = () => db.run(
                 "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
                 [task.order_id, rule.orderStatus, rule.title, note || "Этап выполнен ответственным сотрудником", userId],
                 async (eventErr) => {
@@ -62,6 +63,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                   resolve(NextResponse.json({ ok: true }));
                 }
               );
+
+              // When the final delivery stage is completed, reflect that state
+              // in every shipment so the customer's shipment cards are accurate.
+              if (task.stage === "delivery") {
+                db.run(
+                  "UPDATE order_fulfillments SET status = 'delivered' WHERE order_id = ? AND status = 'shipped'",
+                  [task.order_id],
+                  (fulfillmentErr) => {
+                    if (fulfillmentErr) return resolve(NextResponse.json({ error: fulfillmentErr.message }, { status: 500 }));
+                    recordEvent();
+                  }
+                );
+              } else {
+                recordEvent();
+              }
             });
           }
         );
