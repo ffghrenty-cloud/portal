@@ -35,7 +35,7 @@ type OrderEvent = {
 
 type Review = { id: number; rating: number; comment: string | null; admin_reply: string | null; created_at: string };
 
-type CustomerShipment = { id: number; carrier: string | null; trackingNumber: string | null; createdAt: string; shippedAt: string | null; items: Array<{ name: string; quantity: number }> };
+type CustomerShipment = { id: number; status: string; carrier: string | null; trackingNumber: string | null; note: string | null; createdAt: string; shippedAt: string | null; items: Array<{ name: string; quantity: number }> };
 
 type OrderNotification = {
   id: number;
@@ -50,6 +50,7 @@ type OrderItem = {
   product_id: number;
   product_name: string;
   quantity: number;
+  shipped_quantity: number;
   price: number;
 };
 
@@ -217,9 +218,17 @@ export default function OrderDetailPage() {
           <section style={{ margin: "18px 0", padding: "22px 24px", background: "#fff", border: "1px solid #e8e1d8" }}>
             <h2 className="order-detail-section" style={{ marginBottom: 14 }}>Отправления по заказу</h2>
             {fulfillments.map(shipment => <div key={shipment.id} style={{ padding: "14px 0", borderTop: "1px solid #eee" }}>
-              <strong>Отправление №{shipment.id}</strong> · {new Date(shipment.createdAt).toLocaleString("ru-RU")}
-              <p style={{ margin: "5px 0" }}>{shipment.carrier || "Перевозчик не указан"} · {shipment.trackingNumber || "Номер не указан"}</p>
-              {shipment.items.map((item, index) => <div key={index}>{item.name}: {item.quantity} шт.</div>)}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <strong>Отправление №{shipment.id}</strong>
+                <span className={`profile-status ${shipment.status === "shipped" ? "shipped" : "pending"}`}>{shipment.status === "shipped" ? "Передано в доставку" : shipment.status === "delivered" ? "Доставлено" : shipment.status}</span>
+              </div>
+              <small style={{ color: "#8b837a" }}>Оформлено: {formatDate(shipment.createdAt)}{shipment.shippedAt ? ` · Отправлено: ${formatDate(shipment.shippedAt)}` : ""}</small>
+              <p style={{ margin: "7px 0" }}>Перевозчик: {shipment.carrier || "Не указан"}</p>
+              <p style={{ margin: "5px 0" }}>Трек-номер: <strong>{shipment.trackingNumber || "Ещё не присвоен"}</strong></p>
+              {shipment.note && <p style={{ margin: "5px 0", color: "#716b64" }}>Комментарий: {shipment.note}</p>}
+              <div style={{ marginTop: 8 }}>
+                {shipment.items.map((item, index) => <div key={index}>{item.name}: {item.quantity} шт.</div>)}
+              </div>
             </div>)}
           </section>
         )}
@@ -293,6 +302,7 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="order-detail-item-qty">
                     {item.quantity} × {formatPrice(item.price)}
+                    <small style={{ display: "block", color: "#8b837a" }}>Отправлено: {item.shipped_quantity || 0} из {item.quantity} шт.</small>
                   </div>
                   <div className="order-detail-item-subtotal">
                     {formatPrice(item.quantity * item.price)}

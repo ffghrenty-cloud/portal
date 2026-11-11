@@ -69,7 +69,14 @@ export function assignStageAutomatically(
                     const recordAssignment = () => {
                       db.run(
                         "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                        [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId]
+                        [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId],
+                        () => {
+                          void notifyOrderCustomer(
+                            orderId,
+                            "Заказ передан на следующий этап",
+                            `Заказ передан на этап «${config.label}». Работа продолжится после принятия задания ответственным сотрудником.`
+                          );
+                        }
                       );
                       resolve();
                     };

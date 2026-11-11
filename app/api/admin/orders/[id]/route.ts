@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
+import { notifyOrderCustomer } from "@/lib/order-automation";
 
 async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -129,10 +130,15 @@ export async function PATCH(
             `INSERT INTO order_events (order_id, status, title, description, actor_user_id)
              VALUES (?, ?, ?, ?, ?)`,
             [id, status, titles[status] || "Статус заказа изменён", "Этап обновлён сотрудником предприятия", actorId],
-            (eventError) => {
+            async (eventError) => {
               if (eventError) {
                 resolve(NextResponse.json({ error: eventError.message }, { status: 500 }));
               } else {
+                await notifyOrderCustomer(
+                  Number(id),
+                  titles[status] || "Статус заказа изменён",
+                  `Статус вашего заказа изменён: ${titles[status] || status}.`
+                );
                 resolve(NextResponse.json({ ok: true, changes: 1 }));
               }
             }
@@ -141,10 +147,18 @@ export async function PATCH(
           db.run(
             "INSERT INTO order_events (order_id, status, title, description, actor_user_id) SELECT id, status, 'Данные доставки обновлены', 'Добавлены или изменены сведения для отслеживания отправления', ? FROM orders WHERE id = ?",
             [actorId, id],
-            (eventError) => resolve(eventError
-              ? NextResponse.json({ error: eventError.message }, { status: 500 })
-              : NextResponse.json({ ok: true, changes: this.changes })
-            )
+            async (eventError) => {
+              if (eventError) {
+                resolve(NextResponse.json({ error: eventError.message }, { status: 500 }));
+                return;
+              }
+              await notifyOrderCustomer(
+                Number(id),
+                "Обновлены данные доставки",
+                "В информации о доставке вашего заказа появились изменения. Откройте заказ, чтобы посмотреть актуальные данные."
+              );
+              resolve(NextResponse.json({ ok: true, changes: this.changes }));
+            }
           );
         } else {
           resolve(NextResponse.json({ ok: true, changes: this.changes }));

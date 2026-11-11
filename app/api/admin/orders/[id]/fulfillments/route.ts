@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
-import { notifyOrderCustomer } from "@/lib/order-automation";
+import { advanceOrderWorkflow, notifyOrderCustomer } from "@/lib/order-automation";
 
-async function isAdmin() {
+async function currentActor() {
   const id = (await cookies()).get("userId")?.value;
-  if (!id) return false;
-  return new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [id], (err, user: any) => resolve(!err && user?.role === "admin")));
+  if (!id) return null;
+  return new Promise<any>((resolve) => db.get(
+    "SELECT id, role FROM users WHERE id = ?",
+    [id],
+    (err, user) => resolve(err ? null : user || null)
+  ));
 }
 const run = (sql: string, params: any[] = []) => new Promise<any>((resolve, reject) => db.run(sql, params, function (err) { if (err) reject(err); else resolve({ lastID: this.lastID, changes: this.changes }); }));
 const get = (sql: string, params: any[] = []) => new Promise<any>((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row)));
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+  const actor = await currentActor();
+  if (!actor || actor.role !== "admin") return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
   const { id } = await params;
   return new Promise<NextResponse>((resolve) => db.all(
     `SELECT f.id, f.status, f.tracking_carrier, f.tracking_number, f.note, f.created_at, f.shipped_at,
@@ -35,7 +40,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
+  const actor = await currentActor();
+  if (!actor || !["admin", "logistics"].includes(actor.role)) return NextResponse.json({ error: "Оформлять отправления может администратор или сотрудник логистики" }, { status: 403 });
   const { id } = await params;
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 }); }
@@ -44,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const carrier = typeof body.carrier === "string" ? body.carrier.trim().slice(0, 100) : "";
   const trackingNumber = typeof body.trackingNumber === "string" ? body.trackingNumber.trim().slice(0, 120) : "";
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
-  const actorId = (await cookies()).get("userId")?.value;
+  const actorId = Number(actor.id);
 
   return new Promise<NextResponse>((resolve) => {
     db.serialize(async () => {
@@ -52,8 +58,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await run("BEGIN IMMEDIATE");
         const order = await get("SELECT id, user_id, status FROM orders WHERE id = ?", [id]);
         if (!order) throw new Error("Заказ не найден");
-        if (["cancelled", "delivered"].includes(order.status)) throw new Error("Нельзя отгружать отменённый или доставленный заказ");
+        if (actor.role === "logistics") {
+          const assignedTask = await get(
+            "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status IN ('pending', 'in_progress')",
+            [id, actorId]
+          );
+          if (!assignedTask) throw new Error("Заказ не назначен вам в рабочей очереди логистики");
+        }
+        if (["cancelled", "delivered", "shipped"].includes(order.status)) throw new Error("Нельзя добавить отправление: заказ уже полностью отгружен, доставлен или отменён");
         if (!["ready", "partially_shipped"].includes(order.status)) throw new Error("Отгрузка доступна после того, как сотрудник подготовки отметит заказ загруженным и готовым к отправке");
+
         const requested = new Map<number, number>();
         for (const item of items) {
           const itemId = Number(item.orderItemId), qty = Number(item.quantity);
@@ -66,6 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
            FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,
           [id], (err, rows) => err ? rej(err) : res(rows || [])
         ));
+        if (!orderLines.length) throw new Error("В заказе нет позиций для отгрузки");
         for (const [itemId, qty] of requested) {
           const line = orderLines.find(row => Number(row.id) === itemId);
           if (!line) throw new Error("Позиция не относится к этому заказу");
@@ -78,6 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           if (qty > checkedAvailable) throw new Error(`По позиции №${itemId} склад подтвердил только ${Math.max(0, checkedAvailable)} шт. доступных к отгрузке`);
           if (qty > Number(line.stock_quantity)) throw new Error("На текущем складе недостаточно товара для этой отгрузки");
         }
+
         const fulfillment = await run(
           "INSERT INTO order_fulfillments (order_id, status, tracking_carrier, tracking_number, note, created_by, shipped_at) VALUES (?, 'shipped', ?, ?, ?, ?, CURRENT_TIMESTAMP)",
           [id, carrier || null, trackingNumber || null, note || null, actorId]
@@ -88,21 +104,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const stock = await run("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?", [qty, line.product_id, qty]);
           if (!stock.changes) throw new Error("Остаток товара изменился. Обновите страницу и повторите отгрузку");
         }
+
         const allLines = await new Promise<any[]>((res, rej) => db.all(
           `SELECT oi.quantity, COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
            FROM order_items oi WHERE oi.order_id = ?`,
           [id], (err, rows) => err ? rej(err) : res(rows || [])
         ));
-        const allShipped = allLines.every(line => Number(line.shipped_quantity) >= Number(line.quantity));
+        const allShipped = allLines.length > 0 && allLines.every(line => Number(line.shipped_quantity) >= Number(line.quantity));
         const newStatus = allShipped ? "shipped" : "partially_shipped";
         await run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [newStatus, id]);
         await run(
           "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
           [id, newStatus, allShipped ? "Заказ отгружен полностью" : "Часть заказа отгружена", `Создано отправление №${fulfillment.lastID}. Отгружено позиций: ${requested.size}.`, actorId]
         );
+
+        if (allShipped) {
+          await run(
+            "UPDATE order_stage_tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, note = ? WHERE order_id = ? AND stage = 'shipping' AND status != 'completed'",
+            [`Все позиции переданы в доставку. Последнее отправление №${fulfillment.lastID}.`, id]
+          );
+        } else {
+          await run(
+            "UPDATE order_stage_tasks SET status = 'in_progress', note = ? WHERE order_id = ? AND stage = 'shipping' AND status = 'pending'",
+            [`Частичное отправление №${fulfillment.lastID} оформлено. Ожидается отгрузка остатка.`, id]
+          );
+        }
         await run("COMMIT");
-        void notifyOrderCustomer(Number(id), allShipped ? "Заказ отгружен полностью" : "Часть заказа отправлена", allShipped ? "Все позиции заказа переданы в доставку." : "Часть заказа передана в доставку. Остальные позиции будут отправлены отдельно.");
-        resolve(NextResponse.json({ ok: true, fulfillmentId: fulfillment.lastID, status: newStatus }, { status: 201 }));
+
+        if (allShipped) {
+          await advanceOrderWorkflow(Number(id), "shipping", actorId);
+        } else {
+          void notifyOrderCustomer(Number(id), "Часть заказа отправлена", "Часть заказа передана в доставку. Остальные позиции останутся в работе и будут отправлены отдельно.");
+        }
+        resolve(NextResponse.json({ ok: true, fulfillmentId: fulfillment.lastID, status: newStatus, allShipped }, { status: 201 }));
       } catch (err: any) {
         await run("ROLLBACK").catch(() => {});
         resolve(NextResponse.json({ error: err.message || "Не удалось оформить отправление" }, { status: err.message === "Заказ не найден" ? 404 : 400 }));
