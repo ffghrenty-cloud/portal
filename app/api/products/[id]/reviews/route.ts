@@ -6,19 +6,32 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, { params }: Context) {
   const { id } = await params;
-  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный товар" }, { status: 400 });
-  return new Promise<NextResponse>((resolve) => db.all(
-    `SELECT r.id, r.rating, r.comment, r.admin_reply, r.created_at,
-            u.company AS reviewer_name
-     FROM product_reviews r JOIN users u ON u.id = r.user_id
-     WHERE r.product_id = ? AND r.status = 'approved'
-     ORDER BY r.created_at DESC, r.id DESC LIMIT 100`,
+  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный товар" }, { status: 400 });
+
+  return new Promise<NextResponse>((resolve) => db.get(
+    `SELECT COUNT(*) AS count, COALESCE(AVG(r.rating), 0) AS average
+     FROM product_reviews r
+     WHERE r.product_id = ? AND r.status = 'approved'`,
     [id],
-    (error, reviews: any[]) => {
-      if (error) return resolve(NextResponse.json({ error: "Не удалось загрузить отзывы" }, { status: 500 }));
-      const rows = reviews || [];
-      const average = rows.length ? rows.reduce((sum, review) => sum + Number(review.rating), 0) / rows.length : 0;
-      resolve(NextResponse.json({ reviews: rows, count: rows.length, average: Number(average.toFixed(1)) }));
+    (summaryError, summary: any) => {
+      if (summaryError) return resolve(NextResponse.json({ error: "Не удалось загрузить рейтинг" }, { status: 500 }));
+
+      db.all(
+        `SELECT r.id, r.rating, r.comment, r.admin_reply, r.created_at,
+                u.company AS reviewer_name
+         FROM product_reviews r JOIN users u ON u.id = r.user_id
+         WHERE r.product_id = ? AND r.status = 'approved'
+         ORDER BY r.created_at DESC, r.id DESC LIMIT 100`,
+        [id],
+        (reviewsError, reviews: any[]) => {
+          if (reviewsError) return resolve(NextResponse.json({ error: "Не удалось загрузить отзывы" }, { status: 500 }));
+          resolve(NextResponse.json({
+            reviews: reviews || [],
+            count: Number(summary?.count || 0),
+            average: Number(Number(summary?.average || 0).toFixed(1)),
+          }));
+        }
+      );
     }
   ));
 }
@@ -27,7 +40,7 @@ export async function POST(request: Request, { params }: Context) {
   const userId = (await cookies()).get("userId")?.value;
   if (!userId) return NextResponse.json({ error: "Войдите в аккаунт, чтобы оставить отзыв" }, { status: 401 });
   const { id } = await params;
-  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный товар" }, { status: 400 });
+  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный товар" }, { status: 400 });
 
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 }); }
