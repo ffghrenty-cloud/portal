@@ -19,6 +19,9 @@ type User = {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("client");
+  const filteredUsers = users.filter(user => (roleFilter === "all" || user.role === roleFilter) && `${user.email} ${user.company || ""} ${user.id}`.toLowerCase().includes(search.toLowerCase()));
 
   useEffect(() => {
     fetch("/api/admin/users", { cache: "no-store" })
@@ -34,9 +37,17 @@ export default function AdminUsersPage() {
       <AdminLayout>
         <div className="admin-header">
           <span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span>
-          <h1 className="admin-title">Клиенты</h1>
+          <h1 className="admin-title">Пользователи</h1>
+          <p>Клиенты и сотрудники разделены фильтром по роли.</p>
         </div>
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по email, компании или ID..." style={{ padding: 10, minWidth: 260, border: "1px solid #d8d0c6" }} />
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ padding: 10, border: "1px solid #d8d0c6" }}>
+            <option value="client">Покупатели</option><option value="admin">Администраторы</option><option value="manager">Менеджеры</option><option value="senior_manager">Старшие менеджеры</option><option value="all">Все роли</option>
+          </select>
+          <span style={{ alignSelf: "center" }}>Найдено: {filteredUsers.length}</span>
+        </div>
         {loading ? (
           <p>Загрузка...</p>
         ) : (
@@ -49,18 +60,14 @@ export default function AdminUsersPage() {
               <div>Заказов</div>
               <div>Скидка</div>
             </div>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <div className="admin-table-row" key={u.id}>
                 <div>#{String(u.id).padStart(5, "0")}</div>
                 <div>{u.email}</div>
                 <div>{u.company || "—"}</div>
                 <div>
                   <span className={`admin-role admin-role-${u.role}`}>
-                    {u.role === "admin"
-                      ? "Админ"
-                      : u.role === "manager"
-                      ? "Менеджер"
-                      : "Клиент"}
+                    {u.role === "admin" ? "Администратор" : u.role === "manager" ? "Менеджер" : u.role === "senior_manager" ? "Старший менеджер" : u.role === "client" ? "Клиент" : u.role}
                   </span>
                 </div>
                 <div>{u.orders_count}</div>
