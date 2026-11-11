@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const items = Array.isArray(body.items) ? body.items : [];
     const { contactName, contactPhone, address, comment } = body;
+    const requestedCouponCode = typeof body.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
     if (!items.length || items.length > 100) return NextResponse.json({ error: "Корзина пуста или содержит слишком много позиций" }, { status: 400 });
     for (const item of items) {
       if (!Number.isInteger(Number(item.productId)) || Number(item.productId) < 1 || !Number.isInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > 10000) {
@@ -56,46 +57,84 @@ export async function POST(request: Request) {
           if (items.some((item: any) => !productMap.has(Number(item.productId)))) return resolve(NextResponse.json({ error: "Один или несколько товаров больше недоступны в каталоге" }, { status: 400 }));
           const subtotal = items.reduce((sum: number, item: any) => sum + Number((productMap.get(Number(item.productId)) as any).price) * Number(item.quantity), 0);
           const discountActive = !user.discount_valid_until || user.discount_valid_until >= new Date().toISOString().slice(0, 10);
-          const discountPercent = discountActive ? Math.max(0, Math.min(80, Number(user.discount_percent) || 0)) : 0;
-          const discountAmount = Math.round(subtotal * discountPercent) / 100;
-          const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
-          db.run(
-            `INSERT INTO orders (user_id, status, total, subtotal, discount_percent, discount_amount, contact_name, contact_phone, address, comment)
-             VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, total, subtotal, discountPercent, discountAmount, contactName || null, contactPhone || null, address || null, comment || null],
-            function (orderErr) {
-              if (orderErr) return resolve(NextResponse.json({ error: orderErr.message }, { status: 500 }));
-              const orderId = this.lastID;
-              const stmt = db.prepare("INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
-              let remaining = items.length;
-              let failed = false;
-              for (const item of items) {
-                const product: any = productMap.get(Number(item.productId));
-                stmt.run([orderId, product.id, product.name, Number(item.quantity), Number(product.price)], (itemErr) => {
-                  if (itemErr && !failed) {
-                    failed = true;
-                    stmt.finalize();
-                    return resolve(NextResponse.json({ error: itemErr.message }, { status: 500 }));
-                  }
-                  remaining--;
-                  if (remaining === 0 && !failed) {
-                    stmt.finalize();
-                    const eventDescription = discountPercent > 0
-                      ? `Заказ оформлен. Применена персональная скидка ${discountPercent}% (${discountAmount.toFixed(2)} BYN).`
-                      : "Заказ оформлен и ожидает проверки наличия товаров.";
-                    db.run(
-                      "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, 'pending', 'Заказ оформлен', ?, ?)",
-                      [orderId, eventDescription, userId],
-                      () => {
-                        void assignStageAutomatically(orderId, "stock_check");
-                        void notifyOrderCustomer(orderId, "Заказ принят", "Заявка зарегистрирована. Сотрудник проверит наличие товаров, затем заказ поступит менеджеру.");
-                        resolve(NextResponse.json({ ok: true, orderId, subtotal, discountPercent, discountAmount, total }));
+          const personalDiscount = discountActive ? Math.max(0, Math.min(80, Number(user.discount_percent) || 0)) : 0;
+          const createOrder = (coupon: any = null) => {
+            const couponDiscount = coupon ? Number(coupon.discount_percent) : 0;
+            // Персональная скидка и промокод не суммируются: применяется более выгодный вариант.
+            const discountPercent = Math.max(personalDiscount, couponDiscount);
+            const discountAmount = Math.round(subtotal * discountPercent) / 100;
+            const total = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+            db.run(
+              `INSERT INTO orders (user_id, status, total, subtotal, discount_percent, discount_amount, coupon_code, contact_name, contact_phone, address, comment)
+               VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [userId, total, subtotal, discountPercent, discountAmount, coupon ? coupon.code : null, contactName || null, contactPhone || null, address || null, comment || null],
+              function (orderErr) {
+                if (orderErr) return resolve(NextResponse.json({ error: orderErr.message }, { status: 500 }));
+                const orderId = this.lastID;
+                const createItems = () => {
+                  const stmt = db.prepare("INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
+                  let remaining = items.length;
+                  let failed = false;
+                  for (const item of items) {
+                    const product: any = productMap.get(Number(item.productId));
+                    stmt.run([orderId, product.id, product.name, Number(item.quantity), Number(product.price)], (itemErr) => {
+                      if (itemErr && !failed) {
+                        failed = true;
+                        stmt.finalize();
+                        return resolve(NextResponse.json({ error: itemErr.message }, { status: 500 }));
                       }
-                    );
+                      remaining--;
+                      if (remaining === 0 && !failed) {
+                        stmt.finalize();
+                        const eventDescription = coupon
+                          ? `Заказ оформлен. Применён промокод ${coupon.code}: скидка ${discountPercent}% (${discountAmount.toFixed(2)} BYN).`
+                          : discountPercent > 0
+                            ? `Заказ оформлен. Применена персональная скидка ${discountPercent}% (${discountAmount.toFixed(2)} BYN).`
+                            : "Заказ оформлен и ожидает проверки наличия товаров.";
+                        db.run(
+                          "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, 'pending', 'Заказ оформлен', ?, ?)",
+                          [orderId, eventDescription, userId],
+                          () => {
+                            void assignStageAutomatically(orderId, "stock_check");
+                            void notifyOrderCustomer(orderId, "Заказ принят", "Заявка зарегистрирована. Сотрудник проверит наличие товаров, затем заказ поступит менеджеру.");
+                            resolve(NextResponse.json({ ok: true, orderId, subtotal, discountPercent, discountAmount, total, couponCode: coupon?.code || null }));
+                          }
+                        );
+                      }
+                    });
                   }
-                });
+                };
+                if (!coupon) return createItems();
+                db.run(
+                  "INSERT INTO coupon_redemptions (coupon_id, user_id, order_id) VALUES (?, ?, ?)",
+                  [coupon.id, userId, orderId],
+                  (redemptionError) => {
+                    if (redemptionError) return resolve(NextResponse.json({ error: "Не удалось зарегистрировать использование промокода" }, { status: 500 }));
+                    db.run("UPDATE coupons SET usage_count = usage_count + 1 WHERE id = ?", [coupon.id], (countError) => {
+                      if (countError) return resolve(NextResponse.json({ error: "Не удалось обновить лимит промокода" }, { status: 500 }));
+                      createItems();
+                    });
+                  }
+                );
               }
-            }
+            );
+          };
+
+          if (!requestedCouponCode) return createOrder();
+          if (!/^[A-Z0-9_-]{3,32}$/.test(requestedCouponCode)) return resolve(NextResponse.json({ error: "Некорректный промокод" }, { status: 400 }));
+          const today = new Date().toISOString().slice(0, 10);
+          db.get("SELECT * FROM coupons WHERE code = ? AND is_active = 1", [requestedCouponCode], (couponError, coupon: any) => {
+            if (couponError) return resolve(NextResponse.json({ error: "Не удалось проверить промокод" }, { status: 500 }));
+            if (!coupon) return resolve(NextResponse.json({ error: "Промокод не найден или отключён" }, { status: 400 }));
+            if ((coupon.starts_at && coupon.starts_at > today) || (coupon.expires_at && coupon.expires_at < today)) return resolve(NextResponse.json({ error: "Промокод не действует на текущую дату" }, { status: 400 }));
+            if (subtotal < Number(coupon.min_subtotal)) return resolve(NextResponse.json({ error: `Минимальная сумма для промокода — ${coupon.min_subtotal} BYN` }, { status: 400 }));
+            if (coupon.max_uses !== null && Number(coupon.usage_count) >= Number(coupon.max_uses)) return resolve(NextResponse.json({ error: "Лимит промокода исчерпан" }, { status: 409 }));
+            db.get("SELECT COUNT(*) AS count FROM coupon_redemptions WHERE coupon_id = ? AND user_id = ?", [coupon.id, userId], (usageError, usage: any) => {
+              if (usageError) return resolve(NextResponse.json({ error: "Не удалось проверить лимит клиента" }, { status: 500 }));
+              if (Number(usage?.count || 0) >= Number(coupon.max_uses_per_user)) return resolve(NextResponse.json({ error: "Вы исчерпали лимит использования этого промокода" }, { status: 409 }));
+              createOrder(coupon);
+            });
+          });
           );
         });
       }
