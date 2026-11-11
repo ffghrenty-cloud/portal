@@ -235,7 +235,14 @@ export default function CheckoutPage() {
 
   async function applyCoupon() {
     setCouponBusy(true); setCouponMessage("");
-    const response = await fetch(`/api/coupons/validate?code=${encodeURIComponent(couponInput.trim())}&subtotal=${subtotalAmount}`);
+    const response = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: couponInput.trim(),
+        items: items.map(item => ({ productId: item.productId, quantity: item.quantity }))
+      })
+    });
     const data = await response.json(); setCouponBusy(false);
     if (!response.ok) { setCoupon(null); setCouponMessage(data.error || "Промокод не применён"); return; }
     setCoupon({ code: data.code, discountPercent: data.discountPercent });
