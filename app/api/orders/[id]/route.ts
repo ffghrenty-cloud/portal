@@ -26,8 +26,12 @@ export async function GET(
         }
 
         db.all(
-          `SELECT id, product_id, product_name, quantity, price
-           FROM order_items WHERE order_id = ?`,
+          `SELECT oi.id, oi.product_id, oi.product_name, oi.quantity, oi.price,
+                  COALESCE((SELECT SUM(fi.quantity)
+                            FROM order_fulfillment_items fi
+                            JOIN order_fulfillments f ON f.id = fi.fulfillment_id
+                            WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
+           FROM order_items oi WHERE oi.order_id = ?`,
           [id],
           (err2, items) => {
             if (err2) {
