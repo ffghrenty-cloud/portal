@@ -111,6 +111,10 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [showMap, setShowMap] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discountPercent: number } | null>(null);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
 
   const [cityStatus, setCityStatus] = useState<
     "idle" | "checking" | "valid" | "invalid"
@@ -225,8 +229,27 @@ export default function CheckoutPage() {
   const subtotalAmount = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
   const discountIsActive = user && (!user.discount_valid_until || user.discount_valid_until >= new Date().toISOString().slice(0, 10));
   const personalDiscount = discountIsActive ? Math.max(0, Math.min(80, Number(user.discount_percent) || 0)) : 0;
-  const discountAmount = Math.round(subtotalAmount * personalDiscount) / 100;
+  const discountPercent = Math.max(personalDiscount, coupon?.discountPercent || 0);
+  const discountAmount = Math.round(subtotalAmount * discountPercent) / 100;
   const finalTotal = Math.max(0, Math.round((subtotalAmount - discountAmount) * 100) / 100);
+
+  async function applyCoupon() {
+    setCouponBusy(true); setCouponMessage("");
+    const response = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: couponInput.trim(),
+        items: items.map(item => ({ productId: item.productId, quantity: item.quantity }))
+      })
+    });
+    const data = await response.json(); setCouponBusy(false);
+    if (!response.ok) { setCoupon(null); setCouponMessage(data.error || "Промокод не применён"); return; }
+    setCoupon({ code: data.code, discountPercent: data.discountPercent });
+    setCouponMessage(`Промокод применён: скидка ${data.discountPercent}%`);
+  }
+
+  function removeCoupon() { setCoupon(null); setCouponInput(""); setCouponMessage("Промокод удалён"); }
 
   const isFormValid =
     !errors.contactName &&
@@ -259,6 +282,7 @@ export default function CheckoutPage() {
       contactPhone: contactPhone.trim(),
       address: `${city.trim()}, ${address.trim()}`,
       comment: comment.trim(),
+      couponCode: coupon?.code || null,
     };
 
     const res = await fetch("/api/orders", {
@@ -495,13 +519,21 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
-            {personalDiscount > 0 && <>
+            <div style={{ display: "grid", gap: 8, margin: "14px 0" }}>
+              <label htmlFor="coupon-code"><b>Промокод</b></label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input id="coupon-code" value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Введите код" disabled={Boolean(coupon)} style={{ minWidth: 0, flex: 1, padding: 9, border: "1px solid #d8d0c6" }} />
+                {coupon ? <button type="button" className="button" onClick={removeCoupon}>Убрать</button> : <button type="button" className="button dark" disabled={couponBusy || !couponInput.trim()} onClick={applyCoupon}>{couponBusy ? "..." : "Применить"}</button>}
+              </div>
+              {couponMessage && <small role="status">{couponMessage}</small>}
+            </div>
+            {discountPercent > 0 && <>
               <div className="cart-summary-total"><span>Сумма товаров</span><b>{subtotalAmount.toFixed(2).replace(".", ",")} BYN</b></div>
-              <div className="cart-summary-total"><span>Ваша персональная скидка ({personalDiscount}%)</span><b>−{discountAmount.toFixed(2).replace(".", ",")} BYN</b></div>
+              <div className="cart-summary-total"><span>Скидка ({coupon ? `промокод ${coupon.code}` : "персональная"} · {discountPercent}%)</span><b>−{discountAmount.toFixed(2).replace(".", ",")} BYN</b></div>
             </>}
             <div className="cart-summary-total">
               <span>Итого</span>
-              <b>{personalDiscount > 0 ? `${finalTotal.toFixed(2).replace(".", ",")} BYN` : formattedTotal}</b>
+              <b>{discountPercent > 0 ? `${finalTotal.toFixed(2).replace(".", ",")} BYN` : formattedTotal}</b>
             </div>
             <p className="checkout-summary-note">
               Менеджер свяжется с вами для подтверждения цены и сроков.

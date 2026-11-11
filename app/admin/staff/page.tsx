@@ -19,6 +19,8 @@ const fieldStyle: React.CSSProperties = { display: "block", width: "100%", margi
 
 export default function AdminStaffPage() {
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [search, setSearch] = useState("");
+  const filteredStaff = staff.filter(person => `${person.email} ${person.company || ""} ${ROLE_LABELS[person.role] || person.role} ${person.id}`.toLowerCase().includes(search.toLowerCase()));
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [role, setRole] = useState("manager"); const [company, setCompany] = useState("");
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
@@ -36,7 +38,8 @@ export default function AdminStaffPage() {
     setEmail(""); setPassword(""); setCompany(""); setMessage("Учётная запись сотрудника создана"); load();
   }
   return <AdminGuard><AdminLayout>
-    <div className="admin-header"><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1 className="admin-title">Сотрудники и роли</h1></div>
+    <div className="admin-header"><span className="eyebrow">АДМИНИСТРИРОВАНИЕ</span><h1 className="admin-title">Сотрудники и роли</h1>
+      <p>Администраторы, менеджеры и сотрудники подразделений.</p></div>
     <form onSubmit={createStaff} style={{ display: "grid", gap: 14, maxWidth: 620, padding: 24, background: "#fff", border: "1px solid #e8e1d8", marginBottom: 28 }}>
       <h2 style={{ margin: 0 }}>Добавить сотрудника</h2>
       <label>Email<input required type="email" value={email} onChange={e => setEmail(e.target.value)} style={fieldStyle} /></label>
@@ -47,9 +50,11 @@ export default function AdminStaffPage() {
       {message && <p role="status">{message}</p>}
     </form>
     <h2 style={{ marginBottom: 14 }}>Список сотрудников</h2>
+    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по email, подразделению или роли..." style={{ padding: 10, width: "100%", maxWidth: 460, marginBottom: 14, border: "1px solid #d8d0c6" }} />
+    <p>Найдено: {filteredStaff.length}</p>
     <div className="admin-table">
       <div className="admin-table-head"><div>ID</div><div>Email</div><div>Подразделение</div><div>Роль</div><div>Добавлен</div></div>
-      {staff.map(person => <div className="admin-table-row" key={person.id}><div>#{String(person.id).padStart(5, "0")}</div><div>{person.email}</div><div>{person.company || "—"}</div><div>{ROLE_LABELS[person.role] || person.role}</div><div>{new Date(person.created_at).toLocaleDateString("ru-RU")}</div></div>)}
+      {filteredStaff.map(person => <div className="admin-table-row" key={person.id}><div>#{String(person.id).padStart(5, "0")}</div><div>{person.email}</div><div>{person.company || "—"}</div><div>{ROLE_LABELS[person.role] || person.role}</div><div>{new Date(person.created_at).toLocaleDateString("ru-RU")}</div></div>)}
       {staff.length === 0 && <p style={{ padding: 18 }}>Сотрудников пока нет.</p>}
     </div>
   </AdminLayout></AdminGuard>;

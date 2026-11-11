@@ -22,6 +22,7 @@ type Order = {
   subtotal: number;
   discount_percent: number;
   discount_amount: number;
+  coupon_code: string | null;
 };
 
 type OrderEvent = {
@@ -191,7 +192,8 @@ export default function OrderDetailPage() {
         <section style={{ margin: "18px 0", padding: "18px 22px", background: "#fff", border: "1px solid #e8e1d8" }}>
           <h2 className="order-detail-section" style={{ marginBottom: 12 }}>Расчёт заказа</h2>
           <div className="profile-info-row"><span className="profile-info-label">Стоимость товаров</span><span className="profile-info-value">{formatPrice(order.subtotal || order.total)}</span></div>
-          {Number(order.discount_percent) > 0 && <div className="profile-info-row"><span className="profile-info-label">Персональная скидка ({order.discount_percent}%)</span><span className="profile-info-value">−{formatPrice(order.discount_amount || 0)}</span></div>}
+          {Number(order.discount_percent) > 0 && <div className="profile-info-row"><span className="profile-info-label">Скидка по заказу ({order.discount_percent}%)</span><span className="profile-info-value">−{formatPrice(order.discount_amount || 0)}</span></div>}
+          {order.coupon_code && <div className="profile-info-row"><span className="profile-info-label">Применённый промокод</span><span className="profile-info-value">{order.coupon_code}</span></div>}
           <div className="profile-info-row"><strong>Итого</strong><strong>{formatPrice(order.total)}</strong></div>
         </section>
 

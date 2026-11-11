@@ -30,7 +30,7 @@ export async function GET(
                   COALESCE((SELECT SUM(fi.quantity)
                             FROM order_fulfillment_items fi
                             JOIN order_fulfillments f ON f.id = fi.fulfillment_id
-                            WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
+                            WHERE fi.order_item_id = oi.id AND f.status IN ('shipped', 'delivered')), 0) AS shipped_quantity
            FROM order_items oi WHERE oi.order_id = ?`,
           [id],
           (err2, items) => {

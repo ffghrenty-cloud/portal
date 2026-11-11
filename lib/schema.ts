@@ -157,7 +157,14 @@ export function initDatabase(): Promise<void> {
           "ALTER TABLE orders ADD COLUMN stock_checked_by INTEGER",
           "ALTER TABLE orders ADD COLUMN stock_checked_at DATETIME",
           "ALTER TABLE order_items ADD COLUMN available_quantity INTEGER",
-          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT"
+          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT",
+          "CREATE TABLE IF NOT EXISTS product_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, user_id INTEGER NOT NULL, order_id INTEGER NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT, status TEXT NOT NULL DEFAULT 'pending', admin_reply TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, replied_at DATETIME, FOREIGN KEY (product_id) REFERENCES products(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (order_id) REFERENCES orders(id), UNIQUE (product_id, user_id))",
+          "CREATE INDEX IF NOT EXISTS idx_product_reviews_product_status ON product_reviews(product_id, status, created_at)",
+          "CREATE INDEX IF NOT EXISTS idx_product_reviews_user ON product_reviews(user_id, created_at)",
+          "CREATE TABLE IF NOT EXISTS coupons (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, discount_percent REAL NOT NULL CHECK (discount_percent > 0 AND discount_percent <= 80), min_subtotal REAL NOT NULL DEFAULT 0, max_uses INTEGER, max_uses_per_user INTEGER NOT NULL DEFAULT 1, usage_count INTEGER NOT NULL DEFAULT 0, starts_at TEXT, expires_at TEXT, is_active INTEGER NOT NULL DEFAULT 1, created_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (created_by) REFERENCES users(id))",
+          "CREATE TABLE IF NOT EXISTS coupon_redemptions (id INTEGER PRIMARY KEY AUTOINCREMENT, coupon_id INTEGER NOT NULL, user_id INTEGER NOT NULL, order_id INTEGER NOT NULL UNIQUE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (coupon_id) REFERENCES coupons(id), FOREIGN KEY (user_id) REFERENCES users(id), FOREIGN KEY (order_id) REFERENCES orders(id))",
+          "CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user ON coupon_redemptions(coupon_id, user_id)",
+          "ALTER TABLE orders ADD COLUMN coupon_code TEXT"
         ];
         const runMigration = (index: number) => {
           if (index >= migrations.length) {

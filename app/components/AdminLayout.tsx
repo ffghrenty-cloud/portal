@@ -9,10 +9,12 @@ const MENU = [
   { href: "/admin", label: "Дашборд", icon: BarChart3 },
   { href: "/admin/orders", label: "Заказы", icon: FileText },
   { href: "/admin/products", label: "Товары", icon: Package },
-  { href: "/admin/users", label: "Клиенты и скидки", icon: Users },
+  { href: "/admin/users", label: "Пользователи", icon: Users },
+  { href: "/admin/coupons", label: "Скидки и промокоды", icon: Star },
   { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3 },
   { href: "/admin/reviews", label: "Отзывы", icon: Star },
   { href: "/admin/staff", label: "Сотрудники", icon: UserCog },
+  { href: "/admin/managers", label: "Распределение менеджерам", icon: ClipboardList },
   { href: "/staff/tasks", label: "Рабочие задания", icon: ClipboardList },
   { href: "/admin/messages", label: "Сообщения", icon: MessageCircle },
 ];
