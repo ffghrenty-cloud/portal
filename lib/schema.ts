@@ -175,7 +175,9 @@ export function initDatabase(): Promise<void> {
           "ALTER TABLE orders ADD COLUMN stock_checked_by INTEGER",
           "ALTER TABLE orders ADD COLUMN stock_checked_at DATETIME",
           "ALTER TABLE order_items ADD COLUMN available_quantity INTEGER",
-          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT"
+          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT",
+          "ALTER TABLE order_item_reservations ADD COLUMN consumed_quantity INTEGER NOT NULL DEFAULT 0",
+          "ALTER TABLE order_item_reservations ADD COLUMN released_quantity INTEGER NOT NULL DEFAULT 0"
         ];
         const runMigration = (index: number) => {
           if (index >= migrations.length) {
