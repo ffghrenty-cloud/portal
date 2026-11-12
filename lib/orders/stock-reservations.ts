@@ -56,7 +56,9 @@ export async function reserveOrderStock(orderId: number): Promise<void> {
       throw new Error("Нельзя согласовать заказ: на складе нет ни одной доступной позиции");
     }
 
+    const reservedByProduct = new Map<number, number>();
     for (const line of lines) {
+      const productId = Number(line.product_id);
       const requested = Number(line.available_quantity);
       if (!Number.isInteger(requested) || requested < 0 || requested > Number(line.quantity)) {
         throw new Error("Некорректное подтверждённое количество товара");
@@ -67,7 +69,8 @@ export async function reserveOrderStock(orderId: number): Promise<void> {
         continue;
       }
       if (requested === 0) continue;
-      const free = Number(line.stock_quantity || 0) - Number(line.reserved_for_product || 0);
+      const alreadyCounted = reservedByProduct.get(productId) ?? 0;
+      const free = Number(line.stock_quantity || 0) - Number(line.reserved_for_product || 0) - alreadyCounted;
       if (requested > free) {
         throw new Error(`Недостаточно свободного остатка для позиции «${line.id}»: доступно ${Math.max(0, free)} шт.`);
       }
@@ -75,6 +78,7 @@ export async function reserveOrderStock(orderId: number): Promise<void> {
         "INSERT INTO order_item_reservations (order_item_id, product_id, quantity) VALUES (?, ?, ?)",
         [line.id, line.product_id, requested]
       );
+      reservedByProduct.set(productId, alreadyCounted + requested);
     }
   });
 }
@@ -94,17 +98,21 @@ export async function ensureLegacyOrderReservations(orderId: number): Promise<vo
        FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,
       [orderId]
     );
+    const reservedByProduct = new Map<number, number>();
     for (const line of lines) {
+      const productId = Number(line.product_id);
       const alreadyReserved = Number(line.reserved_for_line || 0);
       const remainingApproved = Math.max(0, Number(line.available_quantity || 0) - Number(line.shipped_quantity || 0));
       const missing = remainingApproved - alreadyReserved;
       if (missing <= 0) continue;
-      const free = Number(line.stock_quantity || 0) - Number(line.reserved_for_product || 0);
+      const alreadyCounted = reservedByProduct.get(productId) ?? 0;
+      const free = Number(line.stock_quantity || 0) - Number(line.reserved_for_product || 0) - alreadyCounted;
       if (missing > free) throw new Error("Недостаточно свободного остатка для продолжения отгрузки старого заказа");
       await run(
         "INSERT INTO order_item_reservations (order_item_id, product_id, quantity) VALUES (?, ?, ?)",
         [line.id, line.product_id, missing]
       );
+      reservedByProduct.set(productId, alreadyCounted + missing);
     }
   });
 }
