@@ -12,7 +12,8 @@ type Task = {
   address: string | null; comment: string | null; order_created_at: string;
   customer_email: string; customer_company: string | null; items: Item[];
 };
-type Manager = { id: number; email: string; role: string };\ntype TeamOrder = { id: number; status: string; total: number; manager: string | null; created_at: string; customer_email: string; customer_company: string | null; contact_name: string | null };
+type Manager = { id: number; email: string; role: string };
+type TeamOrder = { id: number; status: string; total: number; manager: string | null; created_at: string; customer_email: string; customer_company: string | null; contact_name: string | null };
 type Filter = "all" | "pending" | "in_progress" | "completed";
 const money = (v: number) => `${Number(v || 0).toFixed(2).replace(".", ",")} BYN`;
 const panel: React.CSSProperties = { background: "#fff", border: "1px solid #e8e1d8", padding: 22, borderRadius: 8 };
@@ -22,7 +23,11 @@ const field: React.CSSProperties = { width: "100%", padding: 10, border: "1px so
 export default function ManagerWorkspacePage() {
   const router = useRouter();
   const [manager, setManager] = useState<Manager | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);\n  const [teamOrders, setTeamOrders] = useState<TeamOrder[]>([]);\n  const [managers, setManagers] = useState<Manager[]>([]);\n  const [teamAssignments, setTeamAssignments] = useState<Record<number, string>>({});\n  const [teamBusy, setTeamBusy] = useState<number | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamOrders, setTeamOrders] = useState<TeamOrder[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [teamAssignments, setTeamAssignments] = useState<Record<number, string>>({});
+  const [teamBusy, setTeamBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -41,6 +46,12 @@ export default function ManagerWorkspacePage() {
       if (!response.ok) { setError(data.error || "Не удалось открыть панель"); return; }
       setManager(data.manager);
       setTasks(data.tasks || []);
+      setTeamOrders(data.teamOrders || []);
+      setManagers(data.managers || []);
+      setTeamAssignments(Object.fromEntries((data.teamOrders || []).map((order: TeamOrder) => [
+        order.id,
+        String((data.managers || []).find((person: Manager) => person.email === order.manager)?.id || ""),
+      ])));
       setNotes(current => {
         const next = { ...current };
         for (const task of data.tasks || []) if (next[task.task_id] === undefined) next[task.task_id] = task.task_note || "";
