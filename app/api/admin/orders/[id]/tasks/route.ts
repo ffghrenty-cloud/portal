@@ -36,7 +36,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
 
   const scope = actor.role === "manager"
-    ? "AND (o.manager = ? OR EXISTS (SELECT 1 FROM order_stage_tasks own WHERE own.order_id = o.id AND own.stage = 'manager_review' AND own.assigned_user_id = ? AND own.status NOT IN ('cancelled')))"
+    ? "AND (o.manager = ? OR EXISTS (SELECT 1 FROM order_stage_tasks own WHERE own.order_id = o.id AND own.stage = 'manager_review' AND own.assigned_user_id = ? AND own.status IN ('pending', 'in_progress')))"
     : "";
   const values = actor.role === "manager" ? [id, actor.email, actor.id] : [id];
 
@@ -165,7 +165,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
           if (actor.role !== "manager") return checkActorAccess(true);
           db.get(
-            "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'manager_review' AND assigned_user_id = ? AND status NOT IN ('cancelled') LIMIT 1",
+            "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'manager_review' AND assigned_user_id = ? AND status IN ('pending', 'in_progress') LIMIT 1",
             [id, actor.id],
             (accessError, ownTask: any) => {
               if (accessError) return rollback("Не удалось проверить права на заказ");
