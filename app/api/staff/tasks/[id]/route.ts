@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
 import { advanceOrderWorkflow } from "@/lib/order-automation";
+import { reserveOrderStock, releaseOrderReservations } from "@/lib/orders/stock-reservations";
 
 const STAGE_RULES: Record<string, { role: string | string[]; orderStatus: string; title: string; allowedFrom: string[] }> = {
   stock_check: { role: "order_receiver", orderStatus: "stock_checked", title: "Наличие товаров проверено", allowedFrom: ["pending"] },
@@ -41,15 +42,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (!rule.allowedFrom.includes(order.status)) {
           return resolve(NextResponse.json({ error: "Этот этап пока нельзя выполнить: сначала должен завершиться предыдущий этап заказа" }, { status: 409 }));
         }
+        if (task.stage === "manager_review" && nextStatus === "completed") {
+          try {
+            await reserveOrderStock(Number(task.order_id));
+          } catch (reservationError: any) {
+            return resolve(NextResponse.json({ error: reservationError.message || "Не удалось зарезервировать товар" }, { status: 409 }));
+          }
+        }
+
         const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : task.note;
         db.run(
           "UPDATE order_stage_tasks SET status = ?, note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?",
           [nextStatus, note, nextStatus, id],
-          (updateErr) => {
-            if (updateErr) return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
+          async (updateErr) => {
+            if (updateErr) {
+              if (task.stage === "manager_review" && nextStatus === "completed") await releaseOrderReservations(Number(task.order_id)).catch(() => undefined);
+              return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
+            }
             if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
             db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (statusErr) => {
-              if (statusErr) return resolve(NextResponse.json({ error: statusErr.message }, { status: 500 }));
+              if (statusErr) {
+                if (task.stage === "manager_review") {
+                  await releaseOrderReservations(Number(task.order_id)).catch(() => undefined);
+                  await new Promise<void>((done) => db.run("UPDATE order_stage_tasks SET status = 'pending', completed_at = NULL WHERE id = ?", [id], () => done()));
+                }
+                return resolve(NextResponse.json({ error: statusErr.message }, { status: 500 }));
+              }
               db.run(
                 "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
                 [task.order_id, rule.orderStatus, rule.title, note || "Этап выполнен ответственным сотрудником", userId],
