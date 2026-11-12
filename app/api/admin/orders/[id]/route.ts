@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
 import { notifyOrderCustomer } from "@/lib/order-automation";
+import { releaseOrderReservations } from "@/lib/orders/stock-reservations";
 
 async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
@@ -106,10 +107,18 @@ export async function PATCH(
     db.run(
       `UPDATE orders SET ${updates.join(", ")} WHERE id = ?`,
       values,
-      function (err) {
+      async function (err) {
         if (err) {
           resolve(NextResponse.json({ error: err.message }, { status: 500 }));
         } else if (status && this.changes > 0) {
+          if (status === "cancelled") {
+            try {
+              await releaseOrderReservations(Number(id));
+            } catch (releaseError: any) {
+              resolve(NextResponse.json({ error: releaseError.message || "Заказ отменён, но не удалось освободить резерв. Повторите операцию." }, { status: 500 }));
+              return;
+            }
+          }
           const titles: Record<string, string> = {
             draft: "Черновик заказа",
             pending: "Заказ ожидает проверки наличия",
