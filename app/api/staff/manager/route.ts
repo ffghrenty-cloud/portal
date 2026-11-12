@@ -37,7 +37,8 @@ export async function GET() {
           tasks.forEach((task) => {
             db.all(
               `SELECT oi.id, oi.product_name, oi.quantity, oi.price, oi.available_quantity,
-                      p.stock_quantity
+                      p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
+                        FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS stock_quantity
                FROM order_items oi
                LEFT JOIN products p ON p.id = oi.product_id
                WHERE oi.order_id = ? ORDER BY oi.id ASC`,
