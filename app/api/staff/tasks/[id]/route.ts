@@ -41,7 +41,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return resolve(NextResponse.json({ error: "Сначала примите задание в работу" }, { status: 409 }));
       }
       if (nextStatus === "in_progress" && task.status === "in_progress") {
-        return resolve(NextResponse.json({ ok: true, alreadyAccepted: true }));
+        const acceptedNote = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : task.note;
+        return db.run("UPDATE order_stage_tasks SET note = ? WHERE id = ? AND status = 'in_progress'", [acceptedNote, id], (noteError) => {
+          if (noteError) return resolve(NextResponse.json({ error: "Не удалось сохранить заметку к заданию" }, { status: 500 }));
+          resolve(NextResponse.json({ ok: true, alreadyAccepted: true }));
+        });
       }
       if (nextStatus === "in_progress" && task.status !== "pending") {
         return resolve(NextResponse.json({ error: "Это задание нельзя принять в текущем состоянии" }, { status: 409 }));
