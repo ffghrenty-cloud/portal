@@ -53,6 +53,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
   const actorId = Number(actor.id);
 
+  const preOrder: any = await get("SELECT id, status FROM orders WHERE id = ?", [id]).catch(() => null);
+  if (!preOrder) return NextResponse.json({ error: "Заказ не найден" }, { status: 404 });
+  if (!["ready", "partially_shipped"].includes(preOrder.status)) {
+    return NextResponse.json({ error: "Отгрузка доступна только для подготовленного заказа" }, { status: 409 });
+  }
+  if (actor.role === "logistics") {
+    const assignedTask = await get(
+      "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status IN ('pending', 'in_progress')",
+      [id, actorId]
+    );
+    if (!assignedTask) return NextResponse.json({ error: "Заказ не назначен вам в рабочей очереди логистики" }, { status: 403 });
+  }
   try {
     await ensureLegacyOrderReservations(Number(id));
   } catch (reservationError: any) {
