@@ -37,6 +37,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const rule = STAGE_RULES[task.stage];
       if (!rule || (task.actor_role !== "admin" && !(Array.isArray(rule.role) ? rule.role.includes(task.actor_role) : task.actor_role === rule.role) && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
+      if (nextStatus === "completed" && task.status !== "in_progress") {
+        return resolve(NextResponse.json({ error: "Сначала примите задание в работу" }, { status: 409 }));
+      }
       if (nextStatus === "in_progress" && task.status === "in_progress") {
         return resolve(NextResponse.json({ ok: true, alreadyAccepted: true }));
       }
