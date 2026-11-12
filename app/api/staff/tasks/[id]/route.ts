@@ -37,7 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!rule || (task.actor_role !== "admin" && !(Array.isArray(rule.role) ? rule.role.includes(task.actor_role) : task.actor_role === rule.role) && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
 
-      db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
+      db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], async (orderErr, order: any) => {
         if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
         if (!rule.allowedFrom.includes(order.status)) {
           return resolve(NextResponse.json({ error: "Этот этап пока нельзя выполнить: сначала должен завершиться предыдущий этап заказа" }, { status: 409 }));
