@@ -75,7 +75,7 @@ export async function PATCH(request: Request) {
       if (!items.length) return resolve(NextResponse.json({ error: "Добавьте проверенные позиции заказа" }, { status: 400 }));
       if (task.status !== "in_progress") return resolve(NextResponse.json({ error: "Сначала примите заказ в работу" }, { status: 409 }));
       db.all(`
-        `SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity,
+        SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity,
           p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
             FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS free_stock_quantity
          FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,
