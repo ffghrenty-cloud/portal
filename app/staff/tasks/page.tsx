@@ -11,6 +11,8 @@ type ShipmentItem = {
   available_quantity: number | null;
   stock_quantity: number;
   shipped_quantity: number;
+  sku: string | null;
+  price: number;
 };
 type Task = {
   id: number; order_id: number; stage: string; task_status: string; note: string | null;
@@ -149,7 +151,7 @@ export default function StaffTasksPage() {
           return <article key={task.id} style={{ padding: 22, background: "#fff", border: "1px solid #e8e1d8" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <strong>Заказ №{String(task.order_id).padStart(5, "0")}</strong>
-              <span>{task.task_status === "pending" ? "Ожидает выполнения" : task.task_status === "in_progress" ? "В работе" : "Завершено"}</span>
+              <span>{task.task_status === "pending" ? "Ожидает принятия" : task.task_status === "in_progress" ? "В работе" : "Завершено"}</span>
             </div>
             <h2 style={{ margin: "12px 0" }}>{STAGES[task.stage] || task.stage}</h2>
             <p style={{ margin: "6px 0" }}>Клиент: {task.customer_company || task.customer_email}</p>
@@ -157,6 +159,15 @@ export default function StaffTasksPage() {
             <p style={{ margin: "6px 0" }}>Email заказчика: <a href={`mailto:${task.customer_email}`}>{task.customer_email}</a></p>
             <p style={{ margin: "6px 0" }}>Сумма заказа: {money(task.total)} BYN</p>
             {task.note && <p style={{ color: "#6d665e" }}>Примечание: {task.note}</p>}
+            {task.stage !== "shipping" && task.items.length > 0 && <section style={{ marginTop: 16, padding: 14, background: "#f8f7f4", border: "1px solid #e8e1d8" }}>
+              <h3 style={{ margin: "0 0 10px" }}>Состав заказа</h3>
+              <div style={{ display: "grid", gap: 8 }}>
+                {task.items.map(item => <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingBottom: 8, borderBottom: "1px solid #e8e1d8" }}>
+                  <div><strong>{item.product_name}</strong><small style={{ display: "block", color: "#746d65" }}>Артикул: {item.sku || "—"}{item.available_quantity != null ? ` · Подтверждено: ${item.available_quantity} шт.` : ""}</small></div>
+                  <strong>{item.quantity} шт.</strong>
+                </div>)}
+              </div>
+            </section>}
 
             {task.stage === "shipping" && task.task_status === "in_progress" && <section style={{ marginTop: 18, padding: 16, background: "#f8f7f4", border: "1px solid #e8e1d8" }}>
               <h3 style={{ margin: "0 0 8px" }}>Оформление отправления</h3>
