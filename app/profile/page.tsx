@@ -101,12 +101,20 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  const roleName =
-    user.role === "admin"
-      ? "Администратор"
-      : ["manager", "senior_manager"].includes(user.role)
-      ? "Менеджер"
-      : "Оптовый заказчик";
+  const roleNames: Record<string, string> = {
+    admin: "Администратор",
+    senior_manager: "Старший менеджер",
+    manager: "Менеджер",
+    order_receiver: "Приёмщик заказов",
+    warehouse: "Сотрудник склада",
+    quality: "Контролёр качества",
+    packer: "Упаковщик",
+    shipment_preparer: "Подготовка отправлений",
+    logistics: "Логистика",
+    client: "Оптовый заказчик",
+  };
+  const roleName = roleNames[user.role] || "Сотрудник";
+  const isStaff = user.role !== "client";
 
   return (
     <div className="profile-page">
@@ -119,6 +127,11 @@ export default function ProfilePage() {
             </h1>
           </div>
           <div className="profile-actions">
+            {isStaff && (
+              <Link href={user.role === "admin" ? "/admin" : "/staff"} className="button dark">
+                {user.role === "admin" ? "Панель администратора" : "Рабочая панель"}
+              </Link>
+            )}
             {["manager", "senior_manager"].includes(user.role) && (
               <Link href="/staff/manager" className="button dark">
                 Панель менеджера
