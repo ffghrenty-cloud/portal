@@ -1,96 +1,24 @@
-import db from "@/lib/db";
+import { ORDER_STAGES } from "@/lib/orders/order-stages";
+import { OrderWorkflowRepository } from "@/lib/orders/order-workflow.repository";
+import { OrderWorkflowService } from "@/lib/orders/order-workflow.service";
 
-type StageConfig = {
-  role: string[];
-  label: string;
-  next?: string;
-};
+export { ORDER_STAGES } from "@/lib/orders/order-stages";
+export type { OrderStageConfig } from "@/lib/orders/order-stages";
 
-export const ORDER_STAGES: Record<string, StageConfig> = {
-  stock_check: { role: ["order_receiver"], label: "Проверка наличия на складе", next: "manager_review" },
-  manager_review: { role: ["manager", "senior_manager"], label: "Проверка менеджером", next: "warehouse" },
-  warehouse: { role: ["warehouse"], label: "Приёмка на складе", next: "picking" },
-  picking: { role: ["warehouse"], label: "Комплектация", next: "quality_check" },
-  quality_check: { role: ["quality"], label: "Контроль качества", next: "packing" },
-  packing: { role: ["packer"], label: "Упаковка", next: "shipment_preparation" },
-  shipment_preparation: { role: ["shipment_preparer"], label: "Подготовка и загрузка отправки", next: "shipping" },
-  shipping: { role: ["logistics"], label: "Передача в доставку", next: "delivery" },
-  delivery: { role: ["logistics"], label: "Доставка клиенту" },
-};
+/**
+ * Совместимый фасад для старых API-маршрутов.
+ * Новая бизнес-логика находится в OrderWorkflowService,
+ * SQL-запросы — в OrderWorkflowRepository.
+ */
+const workflow = new OrderWorkflowService(new OrderWorkflowRepository());
 
 export function assignStageAutomatically(
   orderId: number,
   stage: string,
   assignedByUserId: number | null = null
 ): Promise<void> {
-  const config = ORDER_STAGES[stage];
-  if (!config) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    db.get(
-      "SELECT id, status FROM orders WHERE id = ?",
-      [orderId],
-      (orderError, order: any) => {
-        if (orderError || !order) return resolve();
-
-        db.get(
-          "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = ? AND status != 'cancelled' LIMIT 1",
-          [orderId, stage],
-          (taskError, existing: any) => {
-            if (taskError || existing) return resolve();
-
-            const placeholders = config.role.map(() => "?").join(", ");
-            db.get(
-              `SELECT u.id, u.email
-               FROM users u
-               LEFT JOIN order_stage_tasks t
-                 ON t.assigned_user_id = u.id AND t.status IN ('pending', 'in_progress')
-               WHERE u.role IN (${placeholders})
-               GROUP BY u.id, u.email, u.created_at
-               ORDER BY COUNT(t.id) ASC, u.created_at ASC, u.id ASC
-               LIMIT 1`,
-              config.role,
-              (staffError, staff: any) => {
-                if (staffError || !staff) {
-                  const message = `Этап «${config.label}» ожидает назначения сотрудника.`;
-                  db.run(
-                    "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                    [orderId, order.status, "Ожидает назначения сотрудника", message, assignedByUserId],
-                    () => { void notifyOrderCustomer(orderId, "Ожидает назначения", message); }
-                  );
-                  return resolve();
-                }
-
-                db.run(
-                  "INSERT INTO order_stage_tasks (order_id, stage, assigned_user_id, assigned_by_user_id, status, note) VALUES (?, ?, ?, ?, 'pending', ?)",
-                  [orderId, stage, staff.id, assignedByUserId, "Назначено системой автоматически"],
-                  (insertError) => {
-                    if (insertError) return resolve();
-                    const recordAssignment = () => {
-                      db.run(
-                        "INSERT INTO order_events (order_id, status, title, description, actor_user_id) VALUES (?, ?, ?, ?, ?)",
-                        [orderId, order.status, "Этап назначен автоматически", `«${config.label}» — ${staff.email}`, assignedByUserId],
-                        () => {
-                          void notifyOrderCustomer(
-                            orderId,
-                            "Заказ передан на следующий этап",
-                            `Заказ передан на этап «${config.label}». Работа продолжится после принятия задания ответственным сотрудником.`
-                          );
-                        }
-                      );
-                      resolve();
-                    };
-                    if (stage === "manager_review") {
-                      db.run("UPDATE orders SET manager = ? WHERE id = ?", [staff.email, orderId], recordAssignment);
-                    } else recordAssignment();
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
-    );
+  return workflow.assignStage(orderId, stage, assignedByUserId).catch((error) => {
+    console.error("Ошибка автоматического назначения этапа:", error);
   });
 }
 
@@ -99,35 +27,17 @@ export function notifyOrderCustomer(
   title: string,
   message: string
 ): Promise<void> {
-  return new Promise((resolve) => {
-    db.get("SELECT user_id FROM orders WHERE id = ?", [orderId], (err, order: any) => {
-      if (err || !order) return resolve();
-      db.run(
-        "INSERT INTO order_notifications (order_id, user_id, title, message) VALUES (?, ?, ?, ?)",
-        [orderId, order.user_id, title, message],
-        () => resolve()
-      );
-    });
+  return workflow.notifyCustomer(orderId, title, message).catch((error) => {
+    console.error("Ошибка создания уведомления:", error);
   });
 }
 
-export async function advanceOrderWorkflow(
+export function advanceOrderWorkflow(
   orderId: number,
   completedStage: string,
   actorUserId: number
 ): Promise<void> {
-  const nextStage = ORDER_STAGES[completedStage]?.next;
-  const current = ORDER_STAGES[completedStage];
-  if (!current) return;
-
-  if (nextStage) {
-    await notifyOrderCustomer(
-      orderId,
-      "Обновление заказа",
-      `Этап «${current.label}» завершён. Следующий этап: «${ORDER_STAGES[nextStage].label}».`
-    );
-    await assignStageAutomatically(orderId, nextStage, actorUserId);
-  } else {
-    await notifyOrderCustomer(orderId, "Заказ доставлен", "Заказ отмечен как доставленный. Спасибо за покупку!");
-  }
+  return workflow.advance(orderId, completedStage, actorUserId).catch((error) => {
+    console.error("Ошибка перехода на следующий этап:", error);
+  });
 }
