@@ -56,6 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     db.serialize(async () => {
       try {
         await run("BEGIN IMMEDIATE");
+        await run("CREATE TABLE IF NOT EXISTS stock_movements (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, movement_type TEXT NOT NULL, quantity INTEGER NOT NULL, balance_after INTEGER NOT NULL, note TEXT, created_by INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (product_id) REFERENCES products(id), FOREIGN KEY (created_by) REFERENCES users(id))");
         const order = await get("SELECT id, user_id, status FROM orders WHERE id = ?", [id]);
         if (!order) throw new Error("Заказ не найден");
         if (actor.role === "logistics") {
@@ -103,6 +104,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           await run("INSERT INTO order_fulfillment_items (fulfillment_id, order_item_id, quantity) VALUES (?, ?, ?)", [fulfillment.lastID, itemId, qty]);
           const stock = await run("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?", [qty, line.product_id, qty]);
           if (!stock.changes) throw new Error("Остаток товара изменился. Обновите страницу и повторите отгрузку");
+          await run(
+            "INSERT INTO stock_movements (product_id, movement_type, quantity, balance_after, note, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+            [line.product_id, "shipment", -qty, Number(line.stock_quantity) - qty, "Отгрузка №" + fulfillment.lastID + " по заказу №" + id, actorId]
+          );
         }
 
         const allLines = await new Promise<any[]>((res, rej) => db.all(
