@@ -38,6 +38,7 @@ export default function StaffTasksPage() {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const [shipmentDrafts, setShipmentDrafts] = useState<Record<number, ShipmentDraft>>({});
+  const [canManageStock, setCanManageStock] = useState(false);
 
   async function load() {
     const res = await fetch("/api/staff/tasks", { cache: "no-store" });
@@ -64,7 +65,12 @@ export default function StaffTasksPage() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    fetch("/api/me", { cache: "no-store" }).then(res => res.json()).then(data => {
+      setCanManageStock(["admin", "warehouse"].includes(data.user?.role));
+    }).catch(() => setCanManageStock(false));
+  }, []);
 
   async function updateTask(id: number, status: "in_progress" | "completed") {
     setBusy(id); setError(""); setSuccess("");
@@ -132,7 +138,7 @@ export default function StaffTasksPage() {
   return <main style={{ maxWidth: 1100, margin: "0 auto", padding: "42px 22px" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
       <div><span className="eyebrow">РАБОЧЕЕ МЕСТО</span><h1 style={{ margin: "8px 0 24px" }}>Мои задания</h1></div>
-      <Link href="/" className="text-link">На сайт</Link>
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>{canManageStock && <Link href="/staff/warehouse" className="text-link">Склад →</Link>}<Link href="/" className="text-link">На сайт</Link></div>
     </div>
     {error && <p role="alert" style={{ color: "#a33", padding: 12, background: "#fff0ef" }}>{error}</p>}
     {success && <p role="status" style={{ color: "#236b42", padding: 12, background: "#edf8f0" }}>{success}</p>}
