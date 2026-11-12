@@ -20,6 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const userId = (await cookies()).get("userId")?.value;
   if (!userId) return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
   const { id } = await params;
+  if (!/^\\d+$/.test(id) || Number(id) < 1) return NextResponse.json({ error: "Некорректный номер задания" }, { status: 400 });
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 }); }
   const nextStatus = body.status;
@@ -30,12 +31,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     [userId, id],
     (err, task: any) => {
       if (err || !task) return resolve(NextResponse.json({ error: "Задание не найдено" }, { status: 404 }));
-      if (task.assigned_user_id !== Number(userId) && task.actor_role !== "admin") return resolve(NextResponse.json({ error: "Это задание назначено другому сотруднику" }, { status: 403 }));
+      if (Number(task.assigned_user_id) !== Number(userId) && task.actor_role !== "admin") return resolve(NextResponse.json({ error: "Это задание назначено другому сотруднику" }, { status: 403 }));
       if (task.stage === "stock_check") return resolve(NextResponse.json({ error: "Для проверки наличия используйте отдельное рабочее место приёмщика" }, { status: 400 }));
       if (task.stage === "shipping" && nextStatus === "completed") return resolve(NextResponse.json({ error: "Завершить логистический этап можно после оформления всех отправлений через форму отгрузки" }, { status: 409 }));
       const rule = STAGE_RULES[task.stage];
       if (!rule || (task.actor_role !== "admin" && !(Array.isArray(rule.role) ? rule.role.includes(task.actor_role) : task.actor_role === rule.role) && !(task.stage === "manager_review" && task.actor_role === "senior_manager"))) return resolve(NextResponse.json({ error: "Ваша роль не может выполнять этот этап" }, { status: 403 }));
       if (task.status === "completed") return resolve(NextResponse.json({ error: "Задание уже завершено" }, { status: 409 }));
+      if (nextStatus === "in_progress" && task.status === "in_progress") {
+        return resolve(NextResponse.json({ ok: true, alreadyAccepted: true }));
+      }
+      if (nextStatus === "in_progress" && task.status !== "pending") {
+        return resolve(NextResponse.json({ error: "Это задание нельзя принять в текущем состоянии" }, { status: 409 }));
+      }
 
       db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], async (orderErr, order: any) => {
         if (orderErr || !order) return resolve(NextResponse.json({ error: "Заказ не найден" }, { status: 404 }));
@@ -52,14 +59,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : task.note;
         db.run(
-          "UPDATE order_stage_tasks SET status = ?, note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?",
+          "UPDATE order_stage_tasks SET status = ?, note = ?, completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ? AND status IN ('pending', 'in_progress')",
           [nextStatus, note, nextStatus, id],
-          async (updateErr) => {
+          async function (updateErr) {
             if (updateErr) {
               if (task.stage === "manager_review" && nextStatus === "completed") await releaseOrderReservations(Number(task.order_id)).catch(() => undefined);
               return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
             }
-            if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
+            if (!this.changes) return resolve(NextResponse.json({ error: "Задание уже изменено другим действием. Обновите страницу." }, { status: 409 }));
+            if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true, status: nextStatus }));
             db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], async (statusErr) => {
               if (statusErr) {
                 if (task.stage === "manager_review") {
