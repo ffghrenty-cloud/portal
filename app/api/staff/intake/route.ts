@@ -15,7 +15,7 @@ export async function GET() {
   return new Promise<NextResponse>((resolve) => db.all(
     `SELECT o.id AS order_id, o.total, o.created_at, o.contact_name, o.contact_phone, o.address,
             u.email AS customer_email, u.company AS customer_company,
-            t.id AS task_id, oi.id AS order_item_id, oi.product_id, oi.product_name,
+            t.id AS task_id, t.status AS task_status, oi.id AS order_item_id, oi.product_id, oi.product_name,
             oi.quantity AS ordered_quantity, oi.available_quantity, oi.warehouse_note,
             p.stock_quantity, p.sku,
             COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity) FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS reserved_quantity,
@@ -33,7 +33,7 @@ export async function GET() {
       const map = new Map<number, any>();
       for (const row of rows || []) {
         if (!map.has(row.order_id)) map.set(row.order_id, {
-          id: row.order_id, taskId: row.task_id, total: row.total, createdAt: row.created_at,
+          id: row.order_id, taskId: row.task_id, taskStatus: row.task_status, total: row.total, createdAt: row.created_at,
           customer: row.customer_company || row.customer_email, contactName: row.contact_name,
           contactPhone: row.contact_phone, address: row.address, items: []
         });
@@ -56,15 +56,26 @@ export async function PATCH(request: Request) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 }); }
   const orderId = Number(body.orderId);
   const items = Array.isArray(body.items) ? body.items : [];
-  if (!Number.isInteger(orderId) || orderId < 1 || !items.length) return NextResponse.json({ error: "Не указаны заказ и проверенные позиции" }, { status: 400 });
+  if (!Number.isInteger(orderId) || orderId < 1) return NextResponse.json({ error: "Не указан корректный заказ" }, { status: 400 });
 
   return new Promise<NextResponse>((resolve) => db.get(
-    "SELECT id FROM order_stage_tasks WHERE order_id = ? AND assigned_user_id = ? AND stage = 'stock_check' AND status != 'completed'",
+    "SELECT t.id, t.status, o.status AS order_status FROM order_stage_tasks t JOIN orders o ON o.id = t.order_id WHERE t.order_id = ? AND t.assigned_user_id = ? AND t.stage = 'stock_check' AND t.status != 'completed'",
     [orderId, actor.id],
     (taskErr, task: any) => {
       if (taskErr || !task) return resolve(NextResponse.json({ error: "Заказ не назначен вам или уже проверен" }, { status: 404 }));
-      db.all(
-        `SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity,
+      if (body.action === "accept") {
+        if (task.status === "in_progress") return resolve(NextResponse.json({ ok: true, alreadyAccepted: true }));
+        if (task.status !== "pending" || task.order_status !== "pending") return resolve(NextResponse.json({ error: "Заказ уже принят другим действием или его этап изменился" }, { status: 409 }));
+        return db.run("UPDATE order_stage_tasks SET status = 'in_progress', note = COALESCE(note, 'Принято приёмщиком в работу') WHERE id = ? AND status = 'pending'", [task.id], function (updateError) {
+          if (updateError) return resolve(NextResponse.json({ error: "Не удалось принять заказ в работу" }, { status: 500 }));
+          if (!this.changes) return resolve(NextResponse.json({ error: "Заказ уже принят другим сотрудником. Обновите очередь." }, { status: 409 }));
+          resolve(NextResponse.json({ ok: true, status: "in_progress" }));
+        });
+      }
+      if (!items.length) return resolve(NextResponse.json({ error: "Добавьте проверенные позиции заказа" }, { status: 400 }));
+      if (task.status !== "in_progress") return resolve(NextResponse.json({ error: "Сначала примите заказ в работу" }, { status: 409 }));
+      db.all(`
+        SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity,
           p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
             FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS free_stock_quantity
          FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,

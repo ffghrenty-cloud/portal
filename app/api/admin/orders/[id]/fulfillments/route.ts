@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (actor.role === "logistics") {
     const assignedTask = await get(
-      "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status IN ('pending', 'in_progress')",
+      "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status = 'in_progress'",
       [id, actorId]
     );
     if (!assignedTask) return NextResponse.json({ error: "Заказ не назначен вам в рабочей очереди логистики" }, { status: 403 });
@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         if (!order) throw new Error("Заказ не найден");
         if (actor.role === "logistics") {
           const assignedTask = await get(
-            "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status IN ('pending', 'in_progress')",
+            "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status = 'in_progress'",
             [id, actorId]
           );
           if (!assignedTask) throw new Error("Заказ не назначен вам в рабочей очереди логистики");
