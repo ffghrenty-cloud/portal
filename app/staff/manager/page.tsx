@@ -152,7 +152,7 @@ export default function ManagerWorkspacePage() {
             {teamOrders.map(order => (
               <div key={order.id} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(180px, 1fr) minmax(230px, 1fr)", gap: 12, alignItems: "center", padding: 12, background: "#f8f6f2", border: "1px solid #eee8e0" }}>
                 <div>
-                  <Link href={`/admin/orders/${order.id}/workflow`} style={{ fontWeight: 700 }}>Заказ №{String(order.id).padStart(5, "0")}</Link>
+                  <strong>Заказ №{String(order.id).padStart(5, "0")}</strong>
                   <small style={{ display: "block", color: "#746d65" }}>{order.customer_company || order.customer_email}</small>
                   {order.contact_name && <small style={{ display: "block", color: "#746d65" }}>{order.contact_name}</small>}
                 </div>
