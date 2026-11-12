@@ -73,12 +73,16 @@ export async function PATCH(request: Request) {
           if (itemsErr || !actualItems?.length) return resolve(NextResponse.json({ error: "Не удалось загрузить состав заказа" }, { status: 500 }));
           if (items.length !== actualItems.length) return resolve(NextResponse.json({ error: "Проверьте наличие по каждой позиции заказа" }, { status: 400 }));
           const byId = new Map(items.map((x: any) => [Number(x.orderItemId), x]));
+          const confirmedByProduct = new Map<number, number>();
           for (const row of actualItems) {
             const checked: any = byId.get(row.id);
             const qty = Number(checked?.availableQuantity);
-            if (!checked || !Number.isInteger(qty) || qty < 0 || qty > row.quantity || qty > Number(row.free_stock_quantity ?? row.stock_quantity)) {
-              return resolve(NextResponse.json({ error: "Количество в наличии должно быть целым числом и не превышать заказанное или свободный остаток склада" }, { status: 400 }));
+            const productId = Number(row.product_id);
+            const confirmedForProduct = confirmedByProduct.get(productId) ?? 0;
+            if (!checked || !Number.isInteger(qty) || qty < 0 || qty > row.quantity || confirmedForProduct + qty > Number(row.free_stock_quantity ?? row.stock_quantity)) {
+              return resolve(NextResponse.json({ error: "Количество в наличии должно быть целым числом и не превышать заказанное или суммарный свободный остаток склада" }, { status: 400 }));
             }
+            confirmedByProduct.set(productId, confirmedForProduct + qty);
           }
           let index = 0;
           const saveNext = () => {
