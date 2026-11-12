@@ -131,6 +131,8 @@ export function initDatabase(): Promise<void> {
         order_item_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL CHECK (quantity > 0),
+        consumed_quantity INTEGER NOT NULL DEFAULT 0 CHECK (consumed_quantity >= 0),
+        released_quantity INTEGER NOT NULL DEFAULT 0 CHECK (released_quantity >= 0),
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'released', 'consumed')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         released_at DATETIME,
