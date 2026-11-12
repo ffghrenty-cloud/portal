@@ -40,7 +40,12 @@ export async function GET() {
     await ensureMovementTable();
     const [products, movements] = await Promise.all([
       new Promise<any[]>((resolve, reject) => db.all(
-        "SELECT id, name, sku, category, stock_quantity FROM products ORDER BY name COLLATE NOCASE",
+        `SELECT p.id, p.name, p.sku, p.category, p.stock_quantity,
+          COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
+            FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS reserved_quantity,
+          p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
+            FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS free_quantity
+         FROM products p ORDER BY p.name COLLATE NOCASE`,
         (err, rows) => err ? reject(err) : resolve(rows || [])
       )),
       new Promise<any[]>((resolve, reject) => db.all(
@@ -91,7 +96,10 @@ export async function POST(request: Request) {
     db.serialize(() => {
       db.run("BEGIN", (beginError) => {
         if (beginError) return resolve(NextResponse.json({ error: "Не удалось начать складскую операцию" }, { status: 500 }));
-        db.get("SELECT stock_quantity FROM products WHERE id = ?", [productId], (productError, product: any) => {
+        db.get(`SELECT p.stock_quantity,
+          COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
+            FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS reserved_quantity
+         FROM products p WHERE p.id = ?`, [productId], (productError, product: any) => {
           if (productError || !product) {
             db.run("ROLLBACK", () => resolve(NextResponse.json({ error: "Товар не найден" }, { status: 404 })));
             return;
@@ -100,6 +108,10 @@ export async function POST(request: Request) {
           const next = type === "receive" ? current + quantity : type === "writeoff" ? current - quantity : quantity;
           if (next < 0) {
             db.run("ROLLBACK", () => resolve(NextResponse.json({ error: "Нельзя списать больше товара, чем есть на складе" }, { status: 400 })));
+            return;
+          }
+          if (next < Number(product.reserved_quantity || 0)) {
+            db.run("ROLLBACK", () => resolve(NextResponse.json({ error: `Нельзя уменьшить остаток ниже зарезервированного количества: ${product.reserved_quantity} шт.` }, { status: 409 })));
             return;
           }
           const delta = next - current;
