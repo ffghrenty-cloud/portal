@@ -138,7 +138,7 @@ export default function StaffTasksPage() {
   return <main style={{ maxWidth: 1100, margin: "0 auto", padding: "42px 22px" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
       <div><span className="eyebrow">РАБОЧЕЕ МЕСТО</span><h1 style={{ margin: "8px 0 24px" }}>Мои задания</h1></div>
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>{canManageStock && <Link href="/staff/warehouse" className="text-link">Склад →</Link>}<Link href="/" className="text-link">На сайт</Link></div>
+      <div style={{ display: "flex", gap: 16, alignItems: "center" }}><Link href="/staff" className="text-link">Рабочая панель</Link>{canManageStock && <Link href="/staff/warehouse" className="text-link">Склад →</Link>}<Link href="/" className="text-link">На сайт</Link></div>
     </div>
     {error && <p role="alert" style={{ color: "#a33", padding: 12, background: "#fff0ef" }}>{error}</p>}
     {success && <p role="status" style={{ color: "#236b42", padding: 12, background: "#edf8f0" }}>{success}</p>}
@@ -158,7 +158,7 @@ export default function StaffTasksPage() {
             <p style={{ margin: "6px 0" }}>Сумма заказа: {money(task.total)} BYN</p>
             {task.note && <p style={{ color: "#6d665e" }}>Примечание: {task.note}</p>}
 
-            {task.stage === "shipping" && task.task_status !== "completed" && <section style={{ marginTop: 18, padding: 16, background: "#f8f7f4", border: "1px solid #e8e1d8" }}>
+            {task.stage === "shipping" && task.task_status === "in_progress" && <section style={{ marginTop: 18, padding: 16, background: "#f8f7f4", border: "1px solid #e8e1d8" }}>
               <h3 style={{ margin: "0 0 8px" }}>Оформление отправления</h3>
               <p style={{ margin: "0 0 14px", color: "#6d665e", fontSize: 13 }}>Можно отправить доступную часть заказа. Неотправленные количества останутся в заказе, и для них можно будет создать следующее отправление.</p>
               <div style={{ display: "grid", gap: 10 }}>
@@ -193,7 +193,7 @@ export default function StaffTasksPage() {
 
             <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               {task.task_status === "pending" && <button className="button dark" disabled={busy === task.id} onClick={() => updateTask(task.id, "in_progress")}>Принять в работу</button>}
-              {task.stage !== "shipping" && task.task_status !== "completed" && <button className="button dark" disabled={busy === task.id} onClick={() => updateTask(task.id, "completed")}>Завершить этап</button>}
+              {task.stage !== "shipping" && task.task_status === "in_progress" && <button className="button dark" disabled={busy === task.id} onClick={() => updateTask(task.id, "completed")}>Завершить этап</button>}
               {task.stage === "shipping" && task.task_status === "in_progress" && <span style={{ color: "#6d665e", alignSelf: "center" }}>Этап завершится автоматически после отправки всех позиций заказа.</span>}
               {task.task_status === "completed" && <span>Этап завершён</span>}
             </div>
