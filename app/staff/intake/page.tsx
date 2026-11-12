@@ -67,7 +67,7 @@ export default function StaffIntakePage() {
   return <main style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 22px", color: "#292722" }}>
     <header style={{ display: "flex", justifyContent: "space-between", gap: 20, alignItems: "center", marginBottom: 28 }}>
       <div><span style={{ letterSpacing: 2, fontSize: 11 }}>РАБОЧЕЕ МЕСТО</span><h1 style={{ fontSize: 30, margin: "8px 0" }}>Приём новых заказов</h1><p style={{ color: "#777" }}>Проверьте остатки по каждой позиции и передайте результат дальше.</p></div>
-      <Link href="/staff/tasks" style={{ color: "inherit" }}>Другие задания →</Link>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><Link href="/staff" style={{ color: "inherit" }}>Рабочая панель</Link><Link href="/staff/tasks" style={{ color: "inherit" }}>Другие задания →</Link></div>
     </header>
     {message && <p role="status" style={{ padding: 12, background: "#f4f1eb" }}>{message}</p>}
     {loading ? <p>Загрузка...</p> : orders.length === 0 ? <p style={{ padding: 28, background: "#fff", border: "1px solid #e8e1d8" }}>Новых заказов на проверку нет.</p> :
