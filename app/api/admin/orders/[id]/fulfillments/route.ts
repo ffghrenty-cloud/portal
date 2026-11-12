@@ -102,6 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           [id], (err, rows) => err ? rej(err) : res(rows || [])
         ));
         if (!orderLines.length) throw new Error("В заказе нет позиций для отгрузки");
+        const stockBalances = new Map<number, number>();
         for (const [itemId, qty] of requested) {
           const line = orderLines.find(row => Number(row.id) === itemId);
           if (!line) throw new Error("Позиция не относится к этому заказу");
@@ -124,9 +125,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           await run("INSERT INTO order_fulfillment_items (fulfillment_id, order_item_id, quantity) VALUES (?, ?, ?)", [fulfillment.lastID, itemId, qty]);
           const stock = await run("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?", [qty, line.product_id, qty]);
           if (!stock.changes) throw new Error("Остаток товара изменился. Обновите страницу и повторите отгрузку");
+          const productId = Number(line.product_id);
+          const previousBalance = stockBalances.get(productId) ?? Number(line.stock_quantity);
+          const nextBalance = previousBalance - qty;
+          stockBalances.set(productId, nextBalance);
           await run(
             "INSERT INTO stock_movements (product_id, movement_type, quantity, balance_after, note, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-            [line.product_id, "shipment", -qty, Number(line.stock_quantity) - qty, "Отгрузка №" + fulfillment.lastID + " по заказу №" + id, actorId]
+            [line.product_id, "shipment", -qty, nextBalance, "Отгрузка №" + fulfillment.lastID + " по заказу №" + id, actorId]
           );
           await consumeOrderReservation(itemId, qty);
         }
