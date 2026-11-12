@@ -123,7 +123,7 @@ export default function ProfilePage() {
           <div>
             <span className="profile-eyebrow">Личный кабинет</span>
             <h1 className="profile-title">
-              {user.company || "Оптовый заказчик"}
+              {user.company || roleName}
             </h1>
           </div>
           <div className="profile-actions">
