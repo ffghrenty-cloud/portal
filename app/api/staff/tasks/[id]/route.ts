@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const userId = (await cookies()).get("userId")?.value;
   if (!userId) return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
   const { id } = await params;
-  if (!/^\\d+$/.test(id) || Number(id) < 1) return NextResponse.json({ error: "Некорректный номер задания" }, { status: 400 });
+  if (!/^\d+$/.test(id) || Number(id) < 1) return NextResponse.json({ error: "Некорректный номер задания" }, { status: 400 });
   let body: any;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 }); }
   const nextStatus = body.status;
