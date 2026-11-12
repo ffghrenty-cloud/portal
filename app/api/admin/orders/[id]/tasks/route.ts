@@ -33,7 +33,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 
   const { id } = await params;
-  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
+  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
 
   const scope = actor.role === "manager"
     ? "AND (o.manager = ? OR EXISTS (SELECT 1 FROM order_stage_tasks own WHERE own.order_id = o.id AND own.stage = 'manager_review' AND own.assigned_user_id = ? AND own.status IN ('pending', 'in_progress')))"
@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { id } = await params;
-  if (!/^\\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
+  if (!/^\d+$/.test(id)) return NextResponse.json({ error: "Некорректный заказ" }, { status: 400 });
 
   let body: any;
   try {
