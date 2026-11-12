@@ -126,6 +126,24 @@ export function initDatabase(): Promise<void> {
         UNIQUE (fulfillment_id, order_item_id)
       );
 
+      CREATE TABLE IF NOT EXISTS order_item_reservations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_item_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        consumed_quantity INTEGER NOT NULL DEFAULT 0 CHECK (consumed_quantity >= 0),
+        released_quantity INTEGER NOT NULL DEFAULT 0 CHECK (released_quantity >= 0),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'released', 'consumed')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        released_at DATETIME,
+        consumed_at DATETIME,
+        FOREIGN KEY (order_item_id) REFERENCES order_items(id),
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reservations_product_status ON order_item_reservations(product_id, status);
+      CREATE INDEX IF NOT EXISTS idx_reservations_item_status ON order_item_reservations(order_item_id, status);
+
       CREATE INDEX IF NOT EXISTS idx_order_fulfillments_order ON order_fulfillments(order_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_order_reviews_user ON order_reviews(user_id, created_at);
 
@@ -157,7 +175,9 @@ export function initDatabase(): Promise<void> {
           "ALTER TABLE orders ADD COLUMN stock_checked_by INTEGER",
           "ALTER TABLE orders ADD COLUMN stock_checked_at DATETIME",
           "ALTER TABLE order_items ADD COLUMN available_quantity INTEGER",
-          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT"
+          "ALTER TABLE order_items ADD COLUMN warehouse_note TEXT",
+          "ALTER TABLE order_item_reservations ADD COLUMN consumed_quantity INTEGER NOT NULL DEFAULT 0",
+          "ALTER TABLE order_item_reservations ADD COLUMN released_quantity INTEGER NOT NULL DEFAULT 0"
         ];
         const runMigration = (index: number) => {
           if (index >= migrations.length) {

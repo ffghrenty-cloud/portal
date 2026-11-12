@@ -17,7 +17,9 @@ export async function GET() {
             u.email AS customer_email, u.company AS customer_company,
             t.id AS task_id, oi.id AS order_item_id, oi.product_id, oi.product_name,
             oi.quantity AS ordered_quantity, oi.available_quantity, oi.warehouse_note,
-            p.stock_quantity, p.sku
+            p.stock_quantity, p.sku,
+            COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity) FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS reserved_quantity,
+            p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity) FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS free_stock_quantity
      FROM order_stage_tasks t
      JOIN orders o ON o.id = t.order_id
      JOIN users u ON u.id = o.user_id
@@ -38,7 +40,7 @@ export async function GET() {
         map.get(row.order_id).items.push({
           orderItemId: row.order_item_id, productId: row.product_id, name: row.product_name,
           sku: row.sku, orderedQuantity: row.ordered_quantity,
-          stockQuantity: row.stock_quantity ?? 0, availableQuantity: row.available_quantity,
+          stockQuantity: Math.max(0, Number(row.free_stock_quantity ?? row.stock_quantity ?? 0)), availableQuantity: row.available_quantity,
           note: row.warehouse_note
         });
       }
@@ -62,18 +64,25 @@ export async function PATCH(request: Request) {
     (taskErr, task: any) => {
       if (taskErr || !task) return resolve(NextResponse.json({ error: "Заказ не назначен вам или уже проверен" }, { status: 404 }));
       db.all(
-        "SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?",
+        `SELECT oi.id, oi.product_id, oi.quantity, p.stock_quantity,
+          p.stock_quantity - COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity)
+            FROM order_item_reservations r WHERE r.product_id = p.id AND r.status = 'active'), 0) AS free_stock_quantity
+         FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,
         [orderId],
         (itemsErr, actualItems: any[]) => {
           if (itemsErr || !actualItems?.length) return resolve(NextResponse.json({ error: "Не удалось загрузить состав заказа" }, { status: 500 }));
           if (items.length !== actualItems.length) return resolve(NextResponse.json({ error: "Проверьте наличие по каждой позиции заказа" }, { status: 400 }));
           const byId = new Map(items.map((x: any) => [Number(x.orderItemId), x]));
+          const confirmedByProduct = new Map<number, number>();
           for (const row of actualItems) {
             const checked: any = byId.get(row.id);
             const qty = Number(checked?.availableQuantity);
-            if (!checked || !Number.isInteger(qty) || qty < 0 || qty > row.quantity || qty > row.stock_quantity) {
-              return resolve(NextResponse.json({ error: "Количество в наличии должно быть целым числом и не превышать заказанное или остаток склада" }, { status: 400 }));
+            const productId = Number(row.product_id);
+            const confirmedForProduct = confirmedByProduct.get(productId) ?? 0;
+            if (!checked || !Number.isInteger(qty) || qty < 0 || qty > row.quantity || confirmedForProduct + qty > Number(row.free_stock_quantity ?? row.stock_quantity)) {
+              return resolve(NextResponse.json({ error: "Количество в наличии должно быть целым числом и не превышать заказанное или суммарный свободный остаток склада" }, { status: 400 }));
             }
+            confirmedByProduct.set(productId, confirmedForProduct + qty);
           }
           let index = 0;
           const saveNext = () => {

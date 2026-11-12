@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
 import { advanceOrderWorkflow, notifyOrderCustomer } from "@/lib/order-automation";
+import { consumeOrderReservation, ensureLegacyOrderReservations } from "@/lib/orders/stock-reservations";
 
 async function currentActor() {
   const id = (await cookies()).get("userId")?.value;
@@ -52,6 +53,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
   const actorId = Number(actor.id);
 
+  const preOrder: any = await get("SELECT id, status FROM orders WHERE id = ?", [id]).catch(() => null);
+  if (!preOrder) return NextResponse.json({ error: "Заказ не найден" }, { status: 404 });
+  if (!["ready", "partially_shipped"].includes(preOrder.status)) {
+    return NextResponse.json({ error: "Отгрузка доступна только для подготовленного заказа" }, { status: 409 });
+  }
+  if (actor.role === "logistics") {
+    const assignedTask = await get(
+      "SELECT id FROM order_stage_tasks WHERE order_id = ? AND stage = 'shipping' AND assigned_user_id = ? AND status IN ('pending', 'in_progress')",
+      [id, actorId]
+    );
+    if (!assignedTask) return NextResponse.json({ error: "Заказ не назначен вам в рабочей очереди логистики" }, { status: 403 });
+  }
+  try {
+    await ensureLegacyOrderReservations(Number(id));
+  } catch (reservationError: any) {
+    return NextResponse.json({ error: reservationError.message || "Не удалось проверить резерв товара" }, { status: 409 });
+  }
+
   return new Promise<NextResponse>((resolve) => {
     db.serialize(async () => {
       try {
@@ -77,17 +96,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
         const orderLines: any[] = await new Promise((res, rej) => db.all(
           `SELECT oi.id, oi.product_id, oi.quantity, oi.available_quantity, p.stock_quantity,
-             COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity
+             COALESCE((SELECT SUM(fi.quantity) FROM order_fulfillment_items fi JOIN order_fulfillments f ON f.id = fi.fulfillment_id WHERE fi.order_item_id = oi.id AND f.status = 'shipped'), 0) AS shipped_quantity,
+             COALESCE((SELECT SUM(r.quantity - r.consumed_quantity - r.released_quantity) FROM order_item_reservations r WHERE r.order_item_id = oi.id AND r.status = 'active'), 0) AS reserved_quantity
            FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?`,
           [id], (err, rows) => err ? rej(err) : res(rows || [])
         ));
         if (!orderLines.length) throw new Error("В заказе нет позиций для отгрузки");
+        const stockBalances = new Map<number, number>();
         for (const [itemId, qty] of requested) {
           const line = orderLines.find(row => Number(row.id) === itemId);
           if (!line) throw new Error("Позиция не относится к этому заказу");
           const remaining = Number(line.quantity) - Number(line.shipped_quantity);
           const checkedAvailable = Math.min(
-            Math.max(0, Number(line.available_quantity ?? 0) - Number(line.shipped_quantity)),
+            Math.max(0, Number(line.reserved_quantity || 0)),
             Math.max(0, Number(line.stock_quantity))
           );
           if (qty > remaining) throw new Error("Нельзя отгрузить больше, чем осталось по заказу");
@@ -104,10 +125,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           await run("INSERT INTO order_fulfillment_items (fulfillment_id, order_item_id, quantity) VALUES (?, ?, ?)", [fulfillment.lastID, itemId, qty]);
           const stock = await run("UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?", [qty, line.product_id, qty]);
           if (!stock.changes) throw new Error("Остаток товара изменился. Обновите страницу и повторите отгрузку");
+          const productId = Number(line.product_id);
+          const previousBalance = stockBalances.get(productId) ?? Number(line.stock_quantity);
+          const nextBalance = previousBalance - qty;
+          stockBalances.set(productId, nextBalance);
           await run(
             "INSERT INTO stock_movements (product_id, movement_type, quantity, balance_after, note, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-            [line.product_id, "shipment", -qty, Number(line.stock_quantity) - qty, "Отгрузка №" + fulfillment.lastID + " по заказу №" + id, actorId]
+            [line.product_id, "shipment", -qty, nextBalance, "Отгрузка №" + fulfillment.lastID + " по заказу №" + id, actorId]
           );
+          await consumeOrderReservation(itemId, qty);
         }
 
         const allLines = await new Promise<any[]>((res, rej) => db.all(
