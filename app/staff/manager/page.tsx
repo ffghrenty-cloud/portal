@@ -12,7 +12,8 @@ type Task = {
   address: string | null; comment: string | null; order_created_at: string;
   customer_email: string; customer_company: string | null; items: Item[];
 };
-type Manager = { email: string; role: string };
+type Manager = { id: number; email: string; role: string };
+type TeamOrder = { id: number; status: string; total: number; manager: string | null; created_at: string; customer_email: string; customer_company: string | null; contact_name: string | null };
 type Filter = "all" | "pending" | "in_progress" | "completed";
 const money = (v: number) => `${Number(v || 0).toFixed(2).replace(".", ",")} BYN`;
 const panel: React.CSSProperties = { background: "#fff", border: "1px solid #e8e1d8", padding: 22, borderRadius: 8 };
@@ -23,6 +24,10 @@ export default function ManagerWorkspacePage() {
   const router = useRouter();
   const [manager, setManager] = useState<Manager | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamOrders, setTeamOrders] = useState<TeamOrder[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [teamAssignments, setTeamAssignments] = useState<Record<number, string>>({});
+  const [teamBusy, setTeamBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -41,6 +46,12 @@ export default function ManagerWorkspacePage() {
       if (!response.ok) { setError(data.error || "Не удалось открыть панель"); return; }
       setManager(data.manager);
       setTasks(data.tasks || []);
+      setTeamOrders(data.teamOrders || []);
+      setManagers(data.managers || []);
+      setTeamAssignments(Object.fromEntries((data.teamOrders || []).map((order: TeamOrder) => [
+        order.id,
+        String((data.managers || []).find((person: Manager) => person.email === order.manager)?.id || ""),
+      ])));
       setNotes(current => {
         const next = { ...current };
         for (const task of data.tasks || []) if (next[task.task_id] === undefined) next[task.task_id] = task.task_note || "";
@@ -52,6 +63,41 @@ export default function ManagerWorkspacePage() {
   }, [router]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function assignTeamOrder(orderId: number) {
+    const assignedUserId = Number(teamAssignments[orderId]);
+    if (!assignedUserId) {
+      setError("Выберите менеджера для назначения заказа");
+      return;
+    }
+    setTeamBusy(orderId);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: "manager_review",
+          assignedUserId,
+          note: "Назначено старшим менеджером из панели команды",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Не удалось передать заказ менеджеру");
+      } else {
+        setSuccess(data.reassigned
+          ? `Ответственный по заказу №${orderId} изменён: ${data.assignedEmail}`
+          : `Заказ №${orderId} назначен: ${data.assignedEmail}`);
+        await load();
+      }
+    } catch {
+      setError("Не удалось связаться с сервером при распределении заказа");
+    } finally {
+      setTeamBusy(null);
+    }
+  }
 
   async function updateTask(taskId: number, status: "in_progress" | "completed") {
     setBusy(taskId); setError(""); setSuccess("");
@@ -100,6 +146,57 @@ export default function ManagerWorkspacePage() {
       <div><span className="eyebrow">РАБОЧЕЕ МЕСТО</span><h1 style={{ margin: "8px 0 5px", fontSize: 32 }}>Панель менеджера</h1><p style={{ margin: 0, color: "#746d65" }}>{manager?.email || "Загрузка профиля"} · согласование заказов и связь с покупателями</p></div>
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}><button style={{ ...button, background: "#71634f" }} onClick={() => { setLoading(true); void load(); }}>Обновить</button><Link href="/staff/tasks" className="text-link">Все задания</Link><Link href="/" className="text-link">На сайт</Link></div>
     </header>
+
+    {manager?.role === "senior_manager" && (
+      <section style={{ ...panel, marginBottom: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <h2 style={{ margin: "0 0 5px" }}>Распределение заказов между менеджерами</h2>
+            <p style={{ margin: 0, color: "#746d65" }}>Здесь отображаются заказы, по которым приёмщик подтвердил наличие товаров. Старший менеджер может назначить или сменить ответственного.</p>
+          </div>
+          <strong>{teamOrders.length} ожидают распределения / переназначения</strong>
+        </div>
+        {teamOrders.length === 0 ? (
+          <p style={{ marginBottom: 0, color: "#746d65" }}>Заказов, ожидающих согласования менеджером, сейчас нет.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+            {teamOrders.map(order => (
+              <div key={order.id} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(180px, 1fr) minmax(230px, 1fr)", gap: 12, alignItems: "center", padding: 12, background: "#f8f6f2", border: "1px solid #eee8e0" }}>
+                <div>
+                  <strong>Заказ №{String(order.id).padStart(5, "0")}</strong>
+                  <small style={{ display: "block", color: "#746d65" }}>{order.customer_company || order.customer_email}</small>
+                  {order.contact_name && <small style={{ display: "block", color: "#746d65" }}>{order.contact_name}</small>}
+                </div>
+                <div>
+                  <small style={{ display: "block", color: "#746d65" }}>Текущий ответственный</small>
+                  <strong>{order.manager || "Не назначен"}</strong>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select
+                    aria-label={`Менеджер для заказа ${order.id}`}
+                    style={field}
+                    value={teamAssignments[order.id] || ""}
+                    onChange={event => setTeamAssignments(current => ({ ...current, [order.id]: event.target.value }))}
+                    disabled={managers.length === 0}
+                  >
+                    <option value="">Выберите менеджера</option>
+                    {managers.map(person => <option key={person.id} value={person.id}>{person.email} {person.role === "senior_manager" ? "(старший)" : ""}</option>)}
+                  </select>
+                  <button
+                    style={button}
+                    disabled={teamBusy === order.id || !teamAssignments[order.id]}
+                    onClick={() => void assignTeamOrder(order.id)}
+                  >
+                    {teamBusy === order.id ? "..." : order.manager ? "Передать" : "Назначить"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {managers.length === 0 && <p style={{ color: "#a16b2e" }}>В системе пока нет менеджеров. Создайте сотрудника с соответствующей ролью в админ-панели.</p>}
+      </section>
+    )}
 
     <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 22 }}>
       <div style={panel}><strong style={{ fontSize: 30 }}>{counts.pending}</strong><div style={{ color: "#746d65" }}>Новые заказы</div></div>
