@@ -111,7 +111,6 @@ export async function ensureLegacyOrderReservations(orderId: number): Promise<vo
 
 /** Переводит зарезервированное количество в фактически отгруженное. */
 export async function consumeOrderReservation(orderItemId: number, quantity: number): Promise<void> {
-  await transaction(async () => {
     const reservations = await all<Row>(
       "SELECT id, quantity, consumed_quantity, released_quantity FROM order_item_reservations WHERE order_item_id = ? AND status = 'active' ORDER BY id",
       [orderItemId]
@@ -133,7 +132,6 @@ export async function consumeOrderReservation(orderItemId: number, quantity: num
       remaining -= consume;
     }
     if (remaining > 0) throw new Error("Недостаточно зарезервированного товара для отгрузки");
-  });
 }
 
 /** Освобождает только неотгруженную часть резерва. */
