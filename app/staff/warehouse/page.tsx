@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardList, Package } from "lucide-react";
+import { ArrowDownToLine, ClipboardList, Package } from "lucide-react";
 
 type Product = { id: number; name: string; sku: string | null; category: string | null; stock_quantity: number };
 type Movement = { id: number; product_id: number; product_name: string; sku: string | null; movement_type: string; quantity: number; balance_after: number; note: string | null; created_at: string; employee: string | null };
 const field: React.CSSProperties = { width: "100%", padding: "11px 12px", border: "1px solid #d8d0c6", background: "#fff", borderRadius: 3, marginTop: 6, color: "#292722" };
-const labels: Record<string, string> = { receive: "Приход", writeoff: "Списание", set: "Корректировка" };
+const labels: Record<string, string> = { receive: "Приход", writeoff: "Списание", set: "Корректировка", shipment: "Отгрузка заказа" };
 const signed = (n: number) => n > 0 ? `+${n}` : String(n);
 
 export default function WarehousePage() {
