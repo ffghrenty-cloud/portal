@@ -60,7 +60,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
               return resolve(NextResponse.json({ error: updateErr.message }, { status: 500 }));
             }
             if (nextStatus !== "completed") return resolve(NextResponse.json({ ok: true }));
-            db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (statusErr) => {
+            db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], async (statusErr) => {
               if (statusErr) {
                 if (task.stage === "manager_review") {
                   await releaseOrderReservations(Number(task.order_id)).catch(() => undefined);
