@@ -23,7 +23,6 @@ const EMPTY: Partial<Product> = {
   price: 0,
   description: "",
   image_url: "",
-  stock_quantity: 0,
 };
 
 export default function AdminProductsPage() {
@@ -168,12 +167,6 @@ export default function AdminProductsPage() {
                     })
                   }
                 />
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-label">Количество на складе, шт.</label>
-                <input type="number" min="0" step="1" className="auth-input" value={editing.stock_quantity ?? 0}
-                  onChange={(e) => setEditing({ ...editing, stock_quantity: Math.max(0, parseInt(e.target.value, 10) || 0) })} />
               </div>
 
               <div className="auth-field">
