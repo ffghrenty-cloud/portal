@@ -19,10 +19,10 @@ export async function GET() {
         if (err) return resolve(NextResponse.json({ error: err.message }, { status: 500 }));
         try {
           const tasks = await Promise.all((rows || []).map(async (task: any) => {
-            if (task.stage !== "shipping") return { ...task, items: [] };
             const items = await new Promise<any[]>((res, rej) => db.all(
               `SELECT oi.id, COALESCE(oi.product_name, p.name, 'Товар #' || oi.product_id) AS product_name,
-                      oi.quantity, oi.available_quantity, COALESCE(p.stock_quantity, 0) AS stock_quantity,
+                      oi.quantity, oi.price, oi.available_quantity, oi.warehouse_note,
+                      p.sku, COALESCE(p.stock_quantity, 0) AS stock_quantity,
                       COALESCE((SELECT SUM(fi.quantity)
                                 FROM order_fulfillment_items fi
                                 JOIN order_fulfillments f ON f.id = fi.fulfillment_id

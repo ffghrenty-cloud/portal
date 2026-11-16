@@ -67,7 +67,7 @@ export default function WarehousePage() {
   return <main style={{ maxWidth: 1200, margin: "0 auto", padding: "36px 22px 60px", color: "#292722" }}>
     <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 26 }}>
       <div><span className="eyebrow">УЧЁТ ТОВАРОВ</span><h1 style={{ fontSize: 30, margin: "8px 0" }}>Склад</h1><p style={{ color: "#777", margin: 0 }}>Приход, списание и корректировка остатков товаров.</p></div>
-      <Link href="/staff/tasks" className="text-link">Рабочие задания →</Link>
+      <div style={{ display: "flex", gap: 14 }}><Link href="/staff" className="text-link">Рабочая панель</Link><Link href="/staff/tasks" className="text-link">Рабочие задания →</Link></div>
     </header>
     {error && <p role="alert" style={{ padding: 12, background: "#fff0ef", color: "#a33" }}>{error}</p>}
     {message && <p role="status" style={{ padding: 12, background: "#edf8f0", color: "#236b42" }}>{message}</p>}
