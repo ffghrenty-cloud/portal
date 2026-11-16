@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/lib/db";
-import { notifyOrderCustomer } from "@/lib/order-automation";
+import { assignStageAutomatically, notifyOrderCustomer } from "@/lib/order-automation";
 import { releaseOrderReservations } from "@/lib/orders/stock-reservations";
 
 async function isAdmin(): Promise<boolean> {
@@ -148,6 +148,20 @@ export async function PATCH(
                   titles[status] || "Статус заказа изменён",
                   `Статус вашего заказа изменён: ${titles[status] || status}.`
                 );
+                const stageByStatus: Record<string, string> = {
+                  pending: "stock_check",
+                  stock_checked: "manager_review",
+                  confirmed: "warehouse",
+                  production: "warehouse",
+                  warehouse: "picking",
+                  picking: "quality_check",
+                  quality_check: "packing",
+                  packing: "shipment_preparation",
+                  ready: "shipping",
+                  shipped: "delivery",
+                };
+                const nextStage = stageByStatus[status];
+                if (nextStage) await assignStageAutomatically(Number(id), nextStage, actorId ? Number(actorId) : null);
                 resolve(NextResponse.json({ ok: true, changes: 1 }));
               }
             }
