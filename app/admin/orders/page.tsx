@@ -40,16 +40,16 @@ function statusLabel(status: string) {
 function OrderProgress({ status }: { status: string }) {
   const current = TRACK.findIndex((step) => step.statuses.includes(status));
   const cancelled = status === "cancelled";
-  return <div aria-label={cancelled ? "Заказ отменён" : `Этап: ${statusLabel(status)}`} style={{ display: "flex", alignItems: "flex-start", width: "100%", maxWidth: 390, paddingTop: 5 }}>
+  return <div aria-label={cancelled ? "Заказ отменён" : `Этап: ${statusLabel(status)}`} style={{ display: "flex", alignItems: "flex-start", width: "100%", maxWidth: 320, paddingTop: 3 }}>
     {TRACK.map((step, index) => {
       const active = !cancelled && current >= 0 && index <= current;
       const currentStep = !cancelled && index === current;
       return <div key={step.label} style={{ display: "flex", alignItems: "center", flex: index === TRACK.length - 1 ? "0 0 auto" : "1 1 0", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 12, gap: 5 }}>
-          <span title={step.label} style={{ width: currentStep ? 13 : 9, height: currentStep ? 13 : 9, borderRadius: "50%", display: "block", background: active ? "#286b49" : "#d8d3cc", border: currentStep ? "2px solid #dcece2" : "none", boxSizing: "content-box", flexShrink: 0 }} />
+          <span title={step.label} style={{ width: currentStep ? 11 : 8, height: currentStep ? 11 : 8, borderRadius: "50%", display: "block", background: active ? "#286b49" : "#d8d3cc", border: currentStep ? "2px solid #dcece2" : "none", boxSizing: "content-box", flexShrink: 0 }} />
           {currentStep && <small style={{ fontSize: 9, lineHeight: 1.1, color: "#286b49", whiteSpace: "nowrap", fontWeight: 700 }}>{step.label}</small>}
         </div>
-        {index < TRACK.length - 1 && <span style={{ height: 2, background: active && current > index ? "#75a58a" : "#e5e1db", flex: 1, margin: "0 3px", marginTop: 5 }} />}
+        {index < TRACK.length - 1 && <span style={{ height: 2, background: active && current > index ? "#75a58a" : "#e5e1db", flex: 1, margin: "0 2px", marginTop: 4 }} />}
       </div>;
     })}
     {cancelled && <small style={{ marginLeft: 8, color: "#a33a32", fontWeight: 700 }}>Отменён</small>}
@@ -114,12 +114,12 @@ export default function AdminOrdersPage() {
 
     {error && <p role="alert" style={{ color: "#a12b2b", padding: 10, background: "#fff0ef" }}>{error}</p>}
     {loading ? <p>Загрузка...</p> : filtered.length === 0 ? <div className="admin-empty">Заказов нет</div> :
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 390px), 1fr))", gap: 8, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 250px), 1fr))", gap: 6, alignItems: "start" }}>
         {filtered.map((order) => {
           const expanded = expandedId === order.id;
           return <section key={order.id} style={{ border: expanded ? "1px solid #b9cdbf" : "1px solid #e5e0d9", background: "#fff", borderRadius: 7, overflow: "hidden", minWidth: 0 }}>
-            <button type="button" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : order.id)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 12px", border: 0, background: expanded ? "#f7faf7" : "#fff", textAlign: "left", cursor: "pointer", color: "inherit" }}>
-              <span style={{ minWidth: 76, fontWeight: 750, fontSize: 15 }}>№{String(order.id).padStart(5, "0")}</span>
+            <button type="button" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : order.id)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 9px", border: 0, background: expanded ? "#f7faf7" : "#fff", textAlign: "left", cursor: "pointer", color: "inherit" }}>
+              <span style={{ minWidth: 68, fontWeight: 750, fontSize: 14 }}>№{String(order.id).padStart(5, "0")}</span>
               <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 12, color: order.status === "cancelled" ? "#a33a32" : "#5e5a53", fontWeight: 600 }}>{statusLabel(order.status)}</span>
                 <OrderProgress status={order.status} />
