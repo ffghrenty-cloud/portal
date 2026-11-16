@@ -44,11 +44,11 @@ export async function POST(request: Request) {
           order_receiver: [{ status: "pending", stage: "stock_check" }],
           manager: [{ status: "stock_checked", stage: "manager_review" }],
           senior_manager: [{ status: "stock_checked", stage: "manager_review" }],
-          warehouse: [{ status: "confirmed", stage: "warehouse" }, { status: "warehouse", stage: "picking" }],
+          warehouse: [{ status: "confirmed", stage: "warehouse" }, { status: "production", stage: "warehouse" }, { status: "warehouse", stage: "picking" }],
           quality: [{ status: "picking", stage: "quality_check" }],
           packer: [{ status: "quality_check", stage: "packing" }],
           shipment_preparer: [{ status: "packing", stage: "shipment_preparation" }],
-          logistics: [{ status: "ready", stage: "shipping" }, { status: "shipped", stage: "delivery" }],
+          logistics: [{ status: "ready", stage: "shipping" }, { status: "partially_shipped", stage: "shipping" }, { status: "shipped", stage: "delivery" }],
         };
         for (const pending of pendingStages[role] || []) {
           db.all("SELECT id FROM orders WHERE status = ? ORDER BY created_at ASC", [pending.status], (ordersError, orders: any[]) => {
