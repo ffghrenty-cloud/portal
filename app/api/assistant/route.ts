@@ -5,24 +5,45 @@ import { Assistant } from "@/lib/Assistant";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { question } = body;
+    const question = body?.question;
 
-    if (!question || typeof question !== "string") {
-      return NextResponse.json(
-        { error: "Не указан вопрос" },
-        { status: 400 }
-      );
+    if (typeof question !== "string" || !question.trim()) {
+      return NextResponse.json({ error: "Не указан вопрос" }, { status: 400 });
     }
+
+    if (question.length > 2000) {
+      return NextResponse.json({ error: "Сообщение слишком длинное" }, { status: 400 });
+    }
+
+    const history = Array.isArray(body?.history)
+      ? body.history
+          .filter(
+            (item: any) =>
+              item &&
+              (item.role === "user" || item.role === "assistant") &&
+              typeof item.content === "string"
+          )
+          .slice(-10)
+          .map((item: any) => ({
+            role: item.role as "user" | "assistant",
+            content: item.content.slice(0, 2000),
+          }))
+      : [];
 
     const cookieStore = await cookies();
     const userIdRaw = cookieStore.get("userId")?.value;
-    const userId = userIdRaw ? parseInt(userIdRaw, 10) : null;
+    const parsedUserId = userIdRaw ? Number.parseInt(userIdRaw, 10) : Number.NaN;
+    const userId = Number.isSafeInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
 
     const assistant = new Assistant(userId);
-    const response = await assistant.ask(question);
+    const response = await assistant.ask(question.trim(), history);
 
     return NextResponse.json(response);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error("Assistant route error:", error);
+    return NextResponse.json(
+      { error: "Не удалось обработать сообщение. Попробуйте ещё раз." },
+      { status: 500 }
+    );
   }
 }
