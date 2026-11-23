@@ -42,9 +42,7 @@ export default function Assistant() {
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-    }
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, adminMessages, loading, adminLoading, mode]);
 
   async function loadAdminMessages() {
@@ -57,9 +55,14 @@ export default function Assistant() {
 
   async function send(text?: string) {
     const q = (text ?? input).trim();
-    if (!q) return;
+    if (!q || loading) return;
 
-    setMessages((m) => [...m, { role: "user", text: q }]);
+    const history = messages
+      .filter((message) => message.role === "user" || message.role === "assistant")
+      .slice(-10)
+      .map((message) => ({ role: message.role, content: message.text }));
+
+    setMessages((current) => [...current, { role: "user", text: q }]);
     setInput("");
     setLoading(true);
 
@@ -67,28 +70,29 @@ export default function Assistant() {
       const res = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, history }),
       });
       const data = await res.json();
 
-      if (data.error) {
-        setMessages((m) => [
-          ...m,
-          { role: "assistant", text: "Что-то пошло не так." },
+      if (!res.ok || data.error) {
+        setMessages((current) => [
+          ...current,
+          { role: "assistant", text: data.error || "Не удалось получить ответ. Попробуйте ещё раз." },
         ]);
       } else {
-        setMessages((m) => [
-          ...m,
+        setMessages((current) => [
+          ...current,
           { role: "assistant", text: data.text, suggestions: data.suggestions },
         ]);
       }
     } catch {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", text: "Ошибка соединения." },
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", text: "Ошибка соединения. Проверьте подключение и попробуйте ещё раз." },
       ]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function sendToAdmin() {
@@ -102,16 +106,16 @@ export default function Assistant() {
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Ошибка отправки");
-      } else {
+      if (!res.ok) alert(data.error || "Ошибка отправки");
+      else {
         setAdminInput("");
         await loadAdminMessages();
       }
     } catch {
       alert("Ошибка сети");
+    } finally {
+      setAdminLoading(false);
     }
-    setAdminLoading(false);
   }
 
   function clearBotHistory() {
@@ -123,11 +127,8 @@ export default function Assistant() {
     if (!confirm("Очистить всю историю переписки с администратором?")) return;
     try {
       const res = await fetch("/api/messages/clear", { method: "POST" });
-      if (res.ok) {
-        setAdminMessages([]);
-      } else {
-        alert("Не удалось очистить историю");
-      }
+      if (res.ok) setAdminMessages([]);
+      else alert("Не удалось очистить историю");
     } catch {
       alert("Ошибка сети");
     }
@@ -137,18 +138,15 @@ export default function Assistant() {
     if (!confirm("Удалить это сообщение?")) return;
     try {
       const res = await fetch(`/api/messages/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setAdminMessages((prev) => prev.filter((m) => m.id !== id));
-      } else {
-        alert("Не удалось удалить сообщение");
-      }
+      if (res.ok) setAdminMessages((prev) => prev.filter((message) => message.id !== id));
+      else alert("Не удалось удалить сообщение");
     } catch {
       alert("Ошибка сети");
     }
   }
 
-  function handleSuggestion(s: string) {
-    const map: Record<string, string> = {
+  function handleSuggestion(suggestion: string) {
+    const routes: Record<string, string> = {
       "Перейти в каталог": "/catalog",
       "Каталог продукции": "/catalog",
       "Показать каталог": "/catalog",
@@ -156,28 +154,24 @@ export default function Assistant() {
       "Открыть документы": "/documents",
       "Документы": "/documents",
     };
-    if (map[s]) {
-      router.push(map[s]);
+
+    if (routes[suggestion]) {
+      router.push(routes[suggestion]);
       setOpen(false);
       return;
     }
-    if (s === "Вызвать администратора") {
+    if (suggestion === "Вызвать администратора") {
       setMode("admin");
       loadAdminMessages();
       return;
     }
-    send(s);
+    send(suggestion);
   }
 
   return (
     <>
       {!open && (
-        <button
-          className="assistant-fab"
-          onClick={() => setOpen(true)}
-          aria-label="ИИ-помощник"
-          type="button"
-        >
+        <button className="assistant-fab" onClick={() => setOpen(true)} aria-label="ИИ-помощник" type="button">
           <Bot size={22} />
           <span className="assistant-fab-label">ИИ-помощник</span>
         </button>
@@ -190,44 +184,18 @@ export default function Assistant() {
               <Bot size={18} />
               <b>{mode === "chat" ? "ИИ-помощник" : "Администратор"}</b>
             </div>
-
             <div className="assistant-header-actions">
               {mode === "chat" && messages.length > 1 && (
-                <button
-                  className="assistant-clear"
-                  onClick={clearBotHistory}
-                  aria-label="Очистить историю"
-                  type="button"
-                  title="Очистить историю чата"
-                >
+                <button className="assistant-clear" onClick={clearBotHistory} aria-label="Очистить историю" type="button" title="Очистить историю чата">
                   <Trash2 size={16} />
                 </button>
               )}
-
               {mode === "admin" && adminMessages.length > 0 && (
-                <button
-                  className="assistant-clear"
-                  onClick={clearAdminHistory}
-                  aria-label="Очистить историю"
-                  type="button"
-                  title="Очистить всю историю"
-                >
+                <button className="assistant-clear" onClick={clearAdminHistory} aria-label="Очистить историю" type="button" title="Очистить всю историю">
                   <Trash2 size={16} />
                 </button>
               )}
-
-              <button
-                className="assistant-close"
-                onClick={() => {
-                  if (mode === "admin") {
-                    setMode("chat");
-                  } else {
-                    setOpen(false);
-                  }
-                }}
-                aria-label="Закрыть"
-                type="button"
-              >
+              <button className="assistant-close" onClick={() => mode === "admin" ? setMode("chat") : setOpen(false)} aria-label="Закрыть" type="button">
                 <X size={18} />
               </button>
             </div>
@@ -236,22 +204,14 @@ export default function Assistant() {
           {mode === "chat" ? (
             <>
               <div className="assistant-body" ref={bodyRef}>
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`assistant-msg assistant-msg-${msg.role}`}
-                  >
-                    <div className="assistant-msg-text">{msg.text}</div>
-                    {msg.suggestions && msg.suggestions.length > 0 && (
+                {messages.map((message, index) => (
+                  <div key={index} className={`assistant-msg assistant-msg-${message.role}`}>
+                    <div className="assistant-msg-text">{message.text}</div>
+                    {message.suggestions && message.suggestions.length > 0 && (
                       <div className="assistant-suggestions">
-                        {msg.suggestions.map((s) => (
-                          <button
-                            key={s}
-                            className="assistant-suggestion"
-                            onClick={() => handleSuggestion(s)}
-                            type="button"
-                          >
-                            {s}
+                        {message.suggestions.map((suggestion) => (
+                          <button key={suggestion} className="assistant-suggestion" onClick={() => handleSuggestion(suggestion)} type="button">
+                            {suggestion}
                           </button>
                         ))}
                       </div>
@@ -260,27 +220,13 @@ export default function Assistant() {
                 ))}
                 {loading && (
                   <div className="assistant-msg assistant-msg-assistant">
-                    <div className="assistant-msg-text assistant-typing">
-                      Печатает<span>.</span><span>.</span><span>.</span>
-                    </div>
+                    <div className="assistant-msg-text assistant-typing">Печатает<span>.</span><span>.</span><span>.</span></div>
                   </div>
                 )}
               </div>
-
-              <form
-                className="assistant-input"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send();
-                }}
-              >
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Задайте вопрос..."
-                />
-                <button type="submit" disabled={loading || !input.trim()}>
+              <form className="assistant-input" onSubmit={(event) => { event.preventDefault(); send(); }}>
+                <input type="text" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Задайте вопрос..." maxLength={2000} />
+                <button type="submit" disabled={loading || !input.trim()} aria-label="Отправить сообщение">
                   <Send size={16} />
                 </button>
               </form>
@@ -288,60 +234,25 @@ export default function Assistant() {
           ) : (
             <>
               <div className="assistant-body" ref={bodyRef}>
-                <div className="assistant-admin-hint">
-                  Задайте вопрос администратору. Ответ придёт сюда же.
-                </div>
-
+                <div className="assistant-admin-hint">Задайте вопрос администратору. Ответ придёт сюда же.</div>
                 {adminMessages.length === 0 ? (
-                  <div className="assistant-admin-empty">
-                    Сообщений пока нет
-                  </div>
-                ) : (
-                  adminMessages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={`assistant-msg ${
-                        m.is_from_admin
-                          ? "assistant-msg-assistant"
-                          : "assistant-msg-user"
-                      }`}
-                    >
-                      <div className="assistant-msg-text">
-                        {m.text}
-                        {!m.is_from_admin && (
-                          <button
-                            className="msg-delete-btn"
-                            onClick={() => deleteMyMessage(m.id)}
-                            aria-label="Удалить сообщение"
-                            title="Удалить сообщение"
-                            type="button"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                      </div>
+                  <div className="assistant-admin-empty">Сообщений пока нет</div>
+                ) : adminMessages.map((message) => (
+                  <div key={message.id} className={`assistant-msg ${message.is_from_admin ? "assistant-msg-assistant" : "assistant-msg-user"}`}>
+                    <div className="assistant-msg-text">
+                      {message.text}
+                      {!message.is_from_admin && (
+                        <button className="msg-delete-btn" onClick={() => deleteMyMessage(message.id)} aria-label="Удалить сообщение" title="Удалить сообщение" type="button">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
-
-              <form
-                className="assistant-input"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendToAdmin();
-                }}
-              >
-                <input
-                  type="text"
-                  value={adminInput}
-                  onChange={(e) => setAdminInput(e.target.value)}
-                  placeholder="Ваш вопрос администратору..."
-                />
-                <button
-                  type="submit"
-                  disabled={adminLoading || !adminInput.trim()}
-                >
+              <form className="assistant-input" onSubmit={(event) => { event.preventDefault(); sendToAdmin(); }}>
+                <input type="text" value={adminInput} onChange={(event) => setAdminInput(event.target.value)} placeholder="Ваш вопрос администратору..." />
+                <button type="submit" disabled={adminLoading || !adminInput.trim()}>
                   <Send size={16} />
                 </button>
               </form>
