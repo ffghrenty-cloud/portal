@@ -1,0 +1,168 @@
+D:\TRPO\portal\app\api\admin\analytics\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\analytics\route.ts:8: return new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [id], (err, user: any) => resolve(!err && user?.role === "admin")));
+D:\TRPO\portal\app\api\admin\analytics\route.ts:84: if (key === "summary") db.get(sql, (err, row) => err ? reject(err) : resolve(row));
+D:\TRPO\portal\app\api\admin\analytics\route.ts:85: else db.all(sql, (err, data) => err ? reject(err) : resolve(data));
+D:\TRPO\portal\app\api\admin\messages\count\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\messages\count\route.ts:11: db.get(
+D:\TRPO\portal\app\api\admin\messages\count\route.ts:19: db.get(
+D:\TRPO\portal\app\api\admin\messages\read\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\messages\read\route.ts:13: db.get(
+D:\TRPO\portal\app\api\admin\messages\read\route.ts:23: db.run(
+D:\TRPO\portal\app\api\admin\messages\[userId]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\messages\[userId]\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\messages\[userId]\route.ts:28: db.run(
+D:\TRPO\portal\app\api\admin\messages\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\messages\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\messages\route.ts:23: db.all(
+D:\TRPO\portal\app\api\admin\messages\route.ts:51: db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:9: return new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [id], (err, user: any) => resolve(!err && user?.role === "admin")));
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:11: const run = (sql: string, params: any[] = []) => new Promise<any>((resolve, reject) => db.run(sql, params, function (err) { if (err) reject(err); else resolve({ lastID: this.lastID, changes: this.changes }); }));
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:12: const get = (sql: string, params: any[] = []) => new Promise<any>((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row)));
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:17: return new Promise<NextResponse>((resolve) => db.all(
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:50: db.serialize(async () => {
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:63: const orderLines: any[] = await new Promise((res, rej) => db.all(
+D:\TRPO\portal\app\api\admin\orders\[id]\fulfillments\route.ts:91: const allLines = await new Promise<any[]>((res, rej) => db.all(
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:13: return new Promise<any>((resolve) => db.get("SELECT id, role FROM users WHERE id = ?", [id], (err, row) => resolve(err ? null : row || null)));
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:20: return new Promise<NextResponse>((resolve) => db.all(
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:39: return new Promise<NextResponse>((resolve) => db.get("SELECT id FROM orders WHERE id = ?", [id], (orderErr, order) => {
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:41: db.get("SELECT id, email, role FROM users WHERE id = ?", [assignedUserId], (userErr, user: any) => {
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:43: db.get(
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:50: const writeEvent = () => db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:56: db.run("UPDATE orders SET manager = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [user.email, id], (managerErr) => {
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:63: db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\tasks\route.ts:71: db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:40: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:46: db.all(
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:105: db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:128: db.run(
+D:\TRPO\portal\app\api\admin\orders\[id]\route.ts:141: db.run(
+D:\TRPO\portal\app\api\admin\orders\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\orders\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\orders\route.ts:23: db.all(
+D:\TRPO\portal\app\api\admin\products\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\products\[id]\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\products\[id]\route.ts:30: db.run(
+D:\TRPO\portal\app\api\admin\products\[id]\route.ts:57: db.run("DELETE FROM products WHERE id = ?", [id], function (err) {
+D:\TRPO\portal\app\api\admin\products\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\products\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\products\route.ts:23: db.all("SELECT * FROM products ORDER BY id DESC", (err, products) => {
+D:\TRPO\portal\app\api\admin\products\route.ts:49: db.run(
+D:\TRPO\portal\app\api\admin\reviews\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\reviews\[id]\route.ts:8: const allowed = await new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [userId], (err, user: any) => resolve(!err && user?.role === "admin")));
+D:\TRPO\portal\app\api\admin\reviews\[id]\route.ts:15: return new Promise<NextResponse>((resolve) => db.run(
+D:\TRPO\portal\app\api\admin\reviews\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\reviews\route.ts:8: return new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [id], (err, user: any) => resolve(!err && user?.role === "admin")));
+D:\TRPO\portal\app\api\admin\reviews\route.ts:13: return new Promise<NextResponse>((resolve) => db.all(
+D:\TRPO\portal\app\api\admin\staff\route.ts:4: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\staff\route.ts:12: return new Promise<any>((resolve) => db.get("SELECT id, role FROM users WHERE id = ?", [id], (err, row) => resolve(err ? null : row || null)));
+D:\TRPO\portal\app\api\admin\staff\route.ts:18: return new Promise<NextResponse>((resolve) => db.all(
+D:\TRPO\portal\app\api\admin\staff\route.ts:37: return new Promise<NextResponse>((resolve) => db.run(
+D:\TRPO\portal\app\api\admin\staff\route.ts:54: db.all("SELECT id FROM orders WHERE status = ? ORDER BY created_at ASC", [pending.status], (ordersError, orders: any[]) => {
+D:\TRPO\portal\app\api\admin\stats\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\stats\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\stats\route.ts:23: db.get(
+D:\TRPO\portal\app\api\admin\users\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\users\[id]\route.ts:8: return new Promise<boolean>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [id], (err, user: any) => resolve(!err && user?.role === "admin")));
+D:\TRPO\portal\app\api\admin\users\[id]\route.ts:20: return new Promise<NextResponse>((resolve) => db.run(
+D:\TRPO\portal\app\api\admin\users\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\admin\users\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\admin\users\route.ts:23: db.all(
+D:\TRPO\portal\app\api\documents\[type]\[orderId]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\documents\[type]\[orderId]\route.ts:23: db.get(
+D:\TRPO\portal\app\api\documents\[type]\[orderId]\route.ts:29: db.get(
+D:\TRPO\portal\app\api\documents\[type]\[orderId]\route.ts:43: db.all(
+D:\TRPO\portal\app\api\documents\[type]\[orderId]\route.ts:52: db.get(
+D:\TRPO\portal\app\api\login\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\login\route.ts:11: db.get(
+D:\TRPO\portal\app\api\me\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\me\route.ts:21: db.get(
+D:\TRPO\portal\app\api\messages\clear\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\messages\clear\route.ts:14: db.run(
+D:\TRPO\portal\app\api\messages\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\messages\[id]\route.ts:11: db.get("SELECT role FROM users WHERE id = ?", [userId], (err, row: any) => {
+D:\TRPO\portal\app\api\messages\[id]\route.ts:28: db.run(
+D:\TRPO\portal\app\api\messages\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\messages\route.ts:14: db.all(
+D:\TRPO\portal\app\api\messages\route.ts:47: db.run(
+D:\TRPO\portal\app\api\orders\[id]\review\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\orders\[id]\review\route.ts:9: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\orders\[id]\review\route.ts:25: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\orders\[id]\review\route.ts:31: db.run(
+D:\TRPO\portal\app\api\orders\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\orders\[id]\route.ts:18: db.get(
+D:\TRPO\portal\app\api\orders\[id]\route.ts:28: db.all(
+D:\TRPO\portal\app\api\orders\[id]\route.ts:38: db.all(
+D:\TRPO\portal\app\api\orders\[id]\route.ts:50: db.all(
+D:\TRPO\portal\app\api\orders\[id]\route.ts:57: db.all(
+D:\TRPO\portal\app\api\orders\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\orders\route.ts:15: db.all(
+D:\TRPO\portal\app\api\orders\route.ts:46: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\orders\route.ts:53: db.all(`SELECT id, name, price FROM products WHERE id IN (${placeholders})`, ids, (productsErr, products: any[]) => {
+D:\TRPO\portal\app\api\orders\route.ts:62: db.run(
+D:\TRPO\portal\app\api\orders\route.ts:69: const stmt = db.prepare("INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)");
+D:\TRPO\portal\app\api\orders\route.ts:86: db.run(
+D:\TRPO\portal\app\api\products\route.ts:2: import db from '@/lib/db';
+D:\TRPO\portal\app\api\products\route.ts:6: db.all('SELECT * FROM products', (err, rows) => {
+D:\TRPO\portal\app\api\register\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\register\route.ts:20: db.run(
+D:\TRPO\portal\app\api\staff\intake\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\staff\intake\route.ts:9: return new Promise<any>((resolve) => db.get("SELECT id, role FROM users WHERE id = ?", [id], (err, row) => resolve(err ? null : row || null)));
+D:\TRPO\portal\app\api\staff\intake\route.ts:15: return new Promise<NextResponse>((resolve) => db.all(
+D:\TRPO\portal\app\api\staff\intake\route.ts:59: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\staff\intake\route.ts:64: db.all(
+D:\TRPO\portal\app\api\staff\intake\route.ts:85: db.run("UPDATE orders SET status = 'stock_checked', stock_checked_by = ?, stock_checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [actor.id, orderId], (orderErr) => {
+D:\TRPO\portal\app\api\staff\intake\route.ts:87: db.run("UPDATE order_stage_tasks SET status = 'completed', note = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?", [summary, task.id], (taskUpdateErr) => {
+D:\TRPO\portal\app\api\staff\intake\route.ts:89: db.run(
+D:\TRPO\portal\app\api\staff\intake\route.ts:104: db.run("UPDATE order_items SET available_quantity = ?, warehouse_note = ? WHERE id = ?", [
+D:\TRPO\portal\app\api\staff\manager\message\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\staff\manager\message\route.ts:19: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\staff\manager\message\route.ts:31: db.run(
+D:\TRPO\portal\app\api\staff\manager\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\staff\manager\route.ts:13: db.get("SELECT id, email, role FROM users WHERE id = ?", [userId], (userError, user: any) => {
+D:\TRPO\portal\app\api\staff\manager\route.ts:19: db.all(
+D:\TRPO\portal\app\api\staff\manager\route.ts:38: db.all(
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:27: return new Promise<NextResponse>((resolve) => db.get(
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:38: db.get("SELECT status FROM orders WHERE id = ?", [task.order_id], (orderErr, order: any) => {
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:45: db.run(
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:51: db.run("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [rule.orderStatus, task.order_id], (statusErr) => {
+D:\TRPO\portal\app\api\staff\tasks\[id]\route.ts:53: db.run(
+D:\TRPO\portal\app\api\staff\tasks\route.ts:3: import db from "@/lib/db";
+D:\TRPO\portal\app\api\staff\tasks\route.ts:8: return new Promise<NextResponse>((resolve) => db.get("SELECT role FROM users WHERE id = ?", [userId], (userErr, user: any) => {
+D:\TRPO\portal\app\api\staff\tasks\route.ts:10: db.all(
+D:\TRPO\portal\app\api\test\route.ts:2: import db from '@/lib/db';
+D:\TRPO\portal\app\api\test\route.ts:6: db.get('SELECT 1 as ok', (err, row) => {
+D:\TRPO\portal\lib\Assistant.ts:1: import db from "./db";
+D:\TRPO\portal\lib\Assistant.ts:226: db.all(
+D:\TRPO\portal\lib\Assistant.ts:263: db.all(
+D:\TRPO\portal\lib\db.ts:1: import sqlite3 from 'sqlite3';
+D:\TRPO\portal\lib\db.ts:6: const db = new sqlite3.Database(dbPath, (err) => {
+D:\TRPO\portal\lib\db.ts:16: db.serialize(() => {
+D:\TRPO\portal\lib\db.ts:17: db.run(`
+D:\TRPO\portal\lib\db.ts:31: db.run(`
+D:\TRPO\portal\lib\db.ts:45: db.run(`
+D:\TRPO\portal\lib\db.ts:57: db.run(`
+D:\TRPO\portal\lib\db.ts:72: db.run(`
+D:\TRPO\portal\lib\db.ts:92: db.run(
+D:\TRPO\portal\lib\db.ts:103: db.run(`
+D:\TRPO\portal\lib\db.ts:117: db.run(`
+D:\TRPO\portal\lib\order-automation.ts:1: import db from "@/lib/db";
+D:\TRPO\portal\lib\order-automation.ts:30: db.get(
+D:\TRPO\portal\lib\order-automation.ts:36: db.get(
+D:\TRPO\portal\lib\order-automation.ts:43: db.get(
+D:\TRPO\portal\lib\order-automation.ts:56: db.run(
+D:\TRPO\portal\lib\order-automation.ts:64: db.run(
+D:\TRPO\portal\lib\order-automation.ts:70: db.run(
+D:\TRPO\portal\lib\order-automation.ts:77: db.run("UPDATE orders SET manager = ? WHERE id = ?", [staff.email, orderId], recordAssignment);
+D:\TRPO\portal\lib\order-automation.ts:96: db.get("SELECT user_id FROM orders WHERE id = ?", [orderId], (err, order: any) => {
+D:\TRPO\portal\lib\order-automation.ts:98: db.run(
+D:\TRPO\portal\lib\schema.ts:1: import db from './db';
+D:\TRPO\portal\lib\schema.ts:5: db.exec(`
+D:\TRPO\portal\lib\schema.ts:168: db.run(migrations[index], (migrationError) => {
+D:\TRPO\portal\lib\seed.ts:1: import db from './db';
+D:\TRPO\portal\lib\seed.ts:5: db.get('SELECT COUNT(*) as c FROM products', (err, row: any) => {
+D:\TRPO\portal\lib\seed.ts:13: const stmt = db.prepare(`
