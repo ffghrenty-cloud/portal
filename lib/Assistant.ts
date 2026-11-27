@@ -128,7 +128,7 @@ export class Assistant {
 Используй только переданные данные. Не придумывай товары, цены, остатки, скидки, сроки доставки, оплату и гарантии.
 Товары в контексте уже отобраны SQL-поиском по всему каталогу с учётом запроса. Если список пуст, сообщи, что точных совпадений нет, и предложи изменить запрос.
 Цены указывай в BYN. Остаток 0 означает, что наличие не подтверждено. Не обещай оформить заказ, изменить заказ или связаться с менеджером самостоятельно.
-По персональным заказам используй только переданные заказы текущего пользователя. Если данных нет, предложи войти или открыть «Мои заказы». Для человека предложи «Вызвать администратора».
+По персональным заказам используй только переданные заказы текущего пользователя. Если пользователь просит рекомендацию или подбор, сначала учитывай категории и товары из его прошлых заказов: предлагай близкие товары из текущего каталога, объясняй связь с историей покупок и не утверждай, что пользователь предпочитает товар, если это не подтверждается заказами. Не рекомендуй товар, которого нет в результатах SQL-поиска. Если история заказов пуста, подбирай только по текущему запросу. Если пользователь спрашивает статус заказа, опирайся на переданные заказы. Для человека предложи «Вызвать администратора».
 Результаты поиска: ${JSON.stringify(products)}
 Параметры поиска: ${JSON.stringify(intent)}
 Последние заказы пользователя: ${JSON.stringify(orders)}
@@ -154,9 +154,29 @@ export class Assistant {
   private async getOrdersContext(): Promise<Array<Record<string, unknown>>> {
     if (!this.userId) return [];
     return new Promise((resolve) => db.all(
-      "SELECT id, status, total, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 5",
+      `SELECT
+        o.id,
+        o.status,
+        o.total,
+        o.created_at,
+        GROUP_CONCAT(DISTINCT COALESCE(oi.product_name, p.name)) AS purchased_products,
+        GROUP_CONCAT(DISTINCT p.category) AS purchased_categories
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      LEFT JOIN products p ON p.id = oi.product_id
+      WHERE o.user_id = ?
+      GROUP BY o.id, o.status, o.total, o.created_at
+      ORDER BY o.created_at DESC
+      LIMIT 5`,
       [this.userId],
-      (err, rows: any[]) => resolve(err ? [] : (rows || []).map((row) => ({ order_number: row.id, status: row.status, total: row.total, created_at: row.created_at })))
+      (err, rows: any[]) => resolve(err ? [] : (rows || []).map((row) => ({
+        order_number: row.id,
+        status: row.status,
+        total: row.total,
+        created_at: row.created_at,
+        purchased_products: row.purchased_products || "",
+        purchased_categories: row.purchased_categories || "",
+      })))
     ));
   }
 
